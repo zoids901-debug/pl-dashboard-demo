@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>인케이코리아 손익 대시보드</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif; background:#f0f2f5; color:#1a1a2e; font-size:14px; }
+
+    /* HEADER */
+    .header { background:linear-gradient(135deg,#1a1a2e 0%,#16213e 60%,#0f3460 100%); color:white; padding:14px 26px; display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #4a90e2; }
+    .header h1 { font-size:17px; font-weight:700; }
+    .header .sub { font-size:11px; opacity:.6; margin-top:3px; }
+    .header-right { text-align:right; font-size:11px; opacity:.65; line-height:1.8; }
+
+    .container { max-width:1500px; margin:0 auto; padding:14px 20px; }
+
+    /* SELECTOR CARD */
+    .sel-card { background:rgba(255,255,255,.97); backdrop-filter:blur(6px); border-radius:10px; padding:14px 18px; box-shadow:0 1px 6px rgba(0,0,0,.07); margin-bottom:14px; position:sticky; top:0; z-index:50; }
+    .sel-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .sel-row + .sel-row { margin-top:10px; padding-top:10px; border-top:1px solid #f0f0f0; }
+    .sel-label { font-size:10px; font-weight:700; color:#aaa; letter-spacing:.5px; text-transform:uppercase; white-space:nowrap; min-width:36px; }
+    .vd { width:1px; height:16px; background:#e5e5e5; flex-shrink:0; }
+
+    /* YEAR TABS */
+    .yr-btn { padding:5px 14px; border:1.5px solid #dde1e7; border-radius:20px; background:white; cursor:pointer; font-size:12px; font-weight:600; color:#555; transition:all .15s; }
+    .yr-btn:hover { background:#f5f7fa; }
+    .yr-btn.active.y25 { background:#6c5ce7; border-color:#6c5ce7; color:white; }
+    .yr-btn.active.y26 { background:#0f3460; border-color:#0f3460; color:white; }
+
+    /* MONTH CHECKBOXES */
+    .month-checks { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+    .cb-item { display:flex; align-items:center; gap:4px; cursor:pointer; padding:4px 10px; border:1.5px solid #e0e4ea; border-radius:16px; font-size:12px; color:#555; transition:all .12s; user-select:none; white-space:nowrap; }
+    .cb-item:hover { border-color:#b0b8c8; background:#f8f9fa; }
+    .cb-item.checked { background:#1a1a2e; border-color:#1a1a2e; color:white; }
+    .cb-item.all-cb.checked { background:#4a90e2; border-color:#4a90e2; }
+    .cb-item input { display:none; }
+
+    /* BRAND + STORE */
+    .brand-wrap { display:flex; flex-direction:column; gap:8px; width:100%; }
+    .brand-row  { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .br-btn { padding:5px 14px; border:1.5px solid #e0e4ea; border-radius:20px; background:white; cursor:pointer; font-size:12px; font-weight:600; color:#555; transition:all .15s; display:flex; align-items:center; gap:4px; }
+    .br-btn:hover { background:#f5f7fa; }
+    .br-btn.active { background:#1a1a2e; border-color:#1a1a2e; color:white; }
+    .br-btn .arr { font-size:9px; opacity:.7; }
+
+    .store-panel { display:none; background:#f8f9fb; border-radius:8px; padding:10px 14px; border:1px solid #eaeaea; }
+    .store-panel.open { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+    .store-panel .panel-label { font-size:10px; font-weight:700; color:#aaa; margin-right:4px; white-space:nowrap; }
+    .store-cb-item { display:flex; align-items:center; gap:4px; cursor:pointer; padding:3px 9px; border:1.5px solid #dde1e7; border-radius:14px; font-size:11px; color:#555; transition:all .12s; user-select:none; white-space:nowrap; }
+    .store-cb-item:hover { border-color:#b0b8c8; background:#f0f2f5; }
+    .store-cb-item.checked { background:#4a90e2; border-color:#4a90e2; color:white; }
+    .store-cb-item input { display:none; }
+
+    /* SELECTION SUMMARY */
+    .sel-summary { margin-left:auto; font-size:11px; color:#4a90e2; font-weight:600; white-space:nowrap; }
+
+    /* KPI */
+    .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
+    .kpi-card { background:white; border-radius:12px; padding:15px 17px; box-shadow:0 2px 8px rgba(0,0,0,.06); border-left:4px solid transparent; transition:box-shadow .15s; position:relative; }
+    .kpi-card:hover { box-shadow:0 5px 18px rgba(0,0,0,.13); }
+    .kpi-card.c1{border-left-color:#4a90e2;} .kpi-card.c2{border-left-color:#00b894;} .kpi-card.c3{border-left-color:#e17055;} .kpi-card.c4{border-left-color:#a29bfe;}
+    .kpi-card.c5{border-left-color:#e17055;} .kpi-card.c6{border-left-color:#fd79a8;} .kpi-card.c7{border-left-color:#fdcb6e;} .kpi-card.c8{border-left-color:#00b894;}
+    .kpi-val2 { font-size:21px; font-weight:800; line-height:1; }
+    .kpi-val2.pos{color:#00b894;} .kpi-val2.neg{color:#e17055;} .kpi-val2.warn{color:#e17055;} .kpi-val2.neu{color:#1a1a2e;}
+    .kpi-lbl { font-size:11px; color:#999; font-weight:600; margin-bottom:7px; }
+    .kpi-val { font-size:23px; font-weight:800; line-height:1; }
+    .kpi-val.pos{color:#00b894;} .kpi-val.neg{color:#e17055;} .kpi-val.neu{color:#1a1a2e;}
+    .kpi-sub { font-size:11px; color:#bbb; margin-top:6px; }
+    .kpi-cmp { font-size:11px; color:#aaa; margin-top:4px; }
+    /* KPI 정보 아이콘 & 툴팁 */
+    .kpi-info-btn { position:absolute; top:10px; right:10px; width:16px; height:16px; border-radius:50%; background:#e8ecf0; color:#888; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; line-height:1; user-select:none; transition:background .15s; }
+    .kpi-info-btn:hover { background:#c5cdd8; color:#444; }
+    .kpi-tooltip { display:none; position:fixed; width:240px; background:#1a1a2e; color:#e0e0e0; font-size:11px; line-height:1.6; padding:10px 13px; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,.35); z-index:9999; pointer-events:auto; border:1px solid #2a3a5a; }
+    .kpi-tooltip::before { content:''; position:absolute; top:-5px; right:var(--arrow-right,9px); width:10px; height:10px; background:#1a1a2e; transform:rotate(45deg); border-radius:2px; border-left:1px solid #2a3a5a; border-top:1px solid #2a3a5a; }
+    .kpi-tooltip strong { color:#fff; display:block; margin-bottom:4px; font-size:11.5px; }
+    .yoy { font-size:10px; font-weight:700; padding:1px 6px; border-radius:8px; display:inline-block; margin-right:3px; }
+    .yoy-up{background:#e8f8f5;color:#00a381;} .yoy-dn{background:#fdf3f0;color:#d63031;}
+
+    /* 폐업매장 안내 툴팁 */
+    .closed-note { display:none; align-items:center; gap:4px; margin-left:6px; position:relative; cursor:help; }
+    .closed-note.visible { display:inline-flex; }
+    .closed-note-icon { width:15px; height:15px; border-radius:50%; background:#fdcb6e; color:#7d5a00; font-size:9px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .closed-note-label { font-size:10px; color:#b08000; font-weight:600; }
+    .closed-note-tip { display:none; position:absolute; top:22px; left:0; width:260px; background:#1a1a2e; color:#e0e0e0; font-size:11px; line-height:1.65; padding:10px 13px; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.25); z-index:200; white-space:normal; }
+    .closed-note-tip strong { color:#fdcb6e; display:block; margin-bottom:4px; }
+    .closed-note:hover .closed-note-tip { display:block; }
+
+    /* TREND */
+    .trend-card { background:white; border-radius:12px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:14px; }
+    .card-title { font-size:13px; font-weight:700; color:#1a1a2e; margin-bottom:12px; }
+
+    /* CHARTS */
+    .charts-row { display:grid; grid-template-columns:3fr 2fr; gap:12px; margin-bottom:12px; }
+    .chart-card { background:white; border-radius:12px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+
+    /* BOTTOM */
+    .bottom-row { display:grid; grid-template-columns:1fr 1.7fr; gap:12px; }
+    .table-card { background:white; border-radius:12px; padding:16px 18px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+
+    /* TABLE */
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    thead th { background:#f8f9fb; padding:7px 9px; text-align:right; font-weight:700; color:#666; border-bottom:2px solid #eaeaea; font-size:11px; }
+    thead th:first-child { text-align:left; }
+    tbody td { padding:6px 9px; border-bottom:1px solid #f3f3f3; text-align:right; }
+    tbody td:first-child { text-align:left; color:#444; }
+    tbody tr:hover { background:#fafafa; }
+    tr.hl td { background:#f0f4ff; font-weight:800; }
+    tr.sub td:first-child { padding-left:18px; color:#888; font-size:11.5px; }
+    .vp{color:#00b894!important;font-weight:700;} .vn{color:#e17055!important;font-weight:700;}
+    .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;}
+    .dg{background:#00b894;} .dy{background:#fdcb6e;} .dr{background:#e17055;}
+    .sb{display:inline-block;padding:2px 7px;border-radius:9px;font-size:10px;font-weight:700;white-space:nowrap;}
+    .sb-ok{background:#e8f8f5;color:#00a381;} .sb-w{background:#fff8e6;color:#e6a817;} .sb-b{background:#fdf3f0;color:#d63031;} .sb-c{background:#ffe0dd;color:#c0392b;}
+    .scroll{max-height:390px;overflow-y:auto;}
+    .scroll::-webkit-scrollbar{width:3px;} .scroll::-webkit-scrollbar-thumb{background:#ddd;border-radius:3px;}
+    .footer{text-align:center;font-size:10px;color:#ccc;padding:12px;}
+
+    /* PL TOGGLE */
+    tr.pl-group { cursor:pointer; user-select:none; }
+    tr.pl-group:hover td { background:#eef2fb !important; }
+    tr.pl-group td:first-child { font-weight:700; color:#1a1a2e; }
+    .tog-icon { display:inline-block; font-size:9px; color:#4a90e2; margin-right:5px; width:10px; text-align:center; transition:transform .15s; }
+    tr.pl-group td { background:#f5f8ff; border-bottom:1px solid #e8edf7; }
+    tr.sub-row { background:#fafbff; }
+    tr.sub-row td:first-child { padding-left:22px; color:#777; font-size:11.5px; font-style:italic; }
+    tr.sub-row td { border-bottom:1px solid #f5f5f5; }
+    tr.sub-row.has-detail { cursor:pointer; user-select:none; }
+    tr.sub-row.has-detail:hover td { background:#eef2fb !important; }
+    tr.sub-row.has-detail td:first-child { font-style:normal; color:#555; font-weight:600; }
+    tr.sub-sub-row { background:#f7f8fc; }
+    tr.sub-sub-row td:first-child { padding-left:38px; color:#999; font-size:10.5px; }
+    tr.sub-sub-row td { border-bottom:1px solid #f8f8f8; font-size:11px; }
+
+    /* ──────────────── 모바일 반응형 ──────────────── */
+
+    /* 태블릿 / 가로 모바일 */
+    @media (max-width: 900px) {
+      .container { padding:10px 8px; }
+      .header { padding:10px 14px; flex-direction:column; align-items:flex-start; gap:4px; }
+      .header h1 { font-size:14px; }
+      .header-right { text-align:left; font-size:10px; }
+
+      /* KPI 카드: 4열 → 2열 */
+      .kpi-grid { grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:10px; }
+      .kpi-card { padding:11px 11px; }
+      .kpi-val { font-size:18px; }
+      .kpi-val2 { font-size:16px; }
+      .kpi-lbl { font-size:10px; margin-bottom:4px; }
+      .kpi-sub { font-size:9.5px; margin-top:4px; }
+      .kpi-cmp { font-size:9.5px; margin-top:3px; }
+      .kpi-info-btn { width:14px; height:14px; font-size:9px; top:7px; right:7px; }
+
+      /* 셀렉터 카드 */
+      .sel-card { padding:10px 10px; }
+      .sel-row { gap:5px; }
+      .sel-label { font-size:9px; min-width:24px; }
+      .yr-btn { padding:4px 10px; font-size:11px; }
+      .cb-item { padding:3px 7px; font-size:11px; }
+      .br-btn { padding:4px 10px; font-size:11px; }
+      .vd { height:12px; }
+
+      /* 차트 영역: 2열 → 1열 */
+      .charts-row { grid-template-columns:1fr; }
+      .chart-card { padding:12px 10px; }
+
+      /* 하단 테이블: 2열 → 1열 */
+      .bottom-row { grid-template-columns:1fr; }
+      .table-card { padding:12px 10px; }
+      .scroll { max-height:320px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+      /* 트렌드 차트 높이 축소 */
+      .trend-card { padding:12px 10px; }
+      #trendChart { max-height:180px !important; }
+
+      /* 테이블 가독성 */
+      table { font-size:11px; }
+      thead th { padding:5px 6px; font-size:10px; white-space:nowrap; }
+      tbody td { padding:4px 6px; white-space:nowrap; }
+      .card-title { font-size:12px; margin-bottom:8px; }
+
+      /* 툴팁 */
+      .kpi-tooltip { width:200px; font-size:10px; padding:8px 10px; }
+      .closed-note-tip { width:200px; font-size:10px; }
+
+      .sel-summary { font-size:10px; }
+
+      /* 매장 패널 */
+      .store-panel.open { gap:4px; padding:8px 10px; }
+      .store-cb-item { padding:2px 7px; font-size:10px; border-radius:12px; }
+
+      /* 상태 배지 */
+      .sb { font-size:9px; padding:1px 5px; }
+
+      .footer { font-size:9px; padding:8px; }
+    }
+
+    /* 세로 모바일 */
+    @media (max-width: 480px) {
+      .container { padding:8px 6px; }
+
+      /* KPI 카드: 2열 유지 (너무 좁으면 1열) */
+      .kpi-grid { grid-template-columns:repeat(2,1fr); gap:6px; }
+      .kpi-card { padding:9px 9px; border-left-width:3px; }
+      .kpi-val { font-size:16px; }
+      .kpi-val2 { font-size:14px; }
+      .kpi-lbl { font-size:9px; }
+      .kpi-sub { font-size:9px; }
+      .kpi-cmp { font-size:9px; }
+      .kpi-info-btn { width:13px; height:13px; font-size:8px; top:5px; right:5px; }
+      .header h1 { font-size:13px; }
+      .header .sub { font-size:9px; }
+
+      /* 셀렉터 더 작게 */
+      .sel-summary { display:none; }
+      .sel-label { font-size:8px; min-width:20px; }
+      .br-btn { padding:3px 8px; font-size:10px; }
+      .yr-btn { padding:3px 8px; font-size:10px; }
+      .cb-item { padding:2px 6px; font-size:10px; }
+      .month-checks { gap:4px; }
+
+      /* 트렌드 차트 더 축소 */
+      #trendChart { max-height:140px !important; }
+
+      /* 테이블 가로 스크롤 강제 */
+      .scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+      table { min-width:520px; font-size:10px; }
+      thead th { font-size:9px; padding:4px 5px; }
+      tbody td { font-size:10px; padding:3px 5px; }
+      .card-title { font-size:11px; }
+
+      /* 손익계산서 들여쓰기 축소 */
+      tr.sub td:first-child { padding-left:12px; font-size:10px; }
+      tr.sub-row td:first-child { padding-left:16px; font-size:10px; }
+
+      /* 폐업/CGV 노트 */
+      .closed-note-label { font-size:9px; }
+      .closed-note-icon { width:13px; height:13px; font-size:8px; }
+      .closed-note-tip { width:180px; font-size:9px; left:-10px; }
+
+      /* 매장 차트 바 축소 */
+      .chart-card { padding:10px 8px; }
+    }
+
+    /* 아주 좁은 화면 (접힌 폴더블 등) */
+    @media (max-width: 360px) {
+      .kpi-grid { grid-template-columns:1fr; gap:5px; }
+      .kpi-card { padding:8px 8px; }
+      .kpi-val { font-size:15px; }
+      .kpi-val2 { font-size:13px; }
+      .br-btn { font-size:9px; padding:2px 6px; }
+      .yr-btn { font-size:9px; padding:2px 6px; }
+      .cb-item { font-size:9px; padding:2px 5px; }
+      table { min-width:480px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading-overlay" style="position:fixed;inset:0;background:#f0f2f5;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;">
+  <div style="width:40px;height:40px;border:4px solid #dde1e7;border-top-color:#4a90e2;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+  <p style="color:#555;font-size:14px;font-weight:600;">손익 데이터 로딩 중...</p>
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+</div>
+<div class="header">
+  <div>
+    <h1>🏢 인케이코리아 손익 대시보드</h1>
+    <div class="sub">통합 월별 손익계산서 · 단위: 백만원, VAT 제외</div>
+  </div>
+  <div class="header-right">
+    <div id="hdr-range">데이터 로딩 중...</div>
+    <div id="hdr-updated" style="opacity:.5"></div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- SELECTOR -->
+  <div class="sel-card">
+
+    <!-- ROW 1: 연도 + 기간 -->
+    <div class="sel-row">
+      <span class="sel-label">연도</span>
+      <button class="yr-btn y26 active" id="yr-2026" onclick="selectYear('2026')" title="클릭으로 추가/해제 (복수 선택 가능)">2026년</button>
+      <button class="yr-btn y25" id="yr-2025" onclick="selectYear('2025')" title="클릭으로 추가/해제 (복수 선택 가능)">2025년</button>
+      <span class="closed-note" id="closed-store-note">
+        <span class="closed-note-icon">!</span>
+        <span class="closed-note-label">폐업매장 포함</span>
+        <span class="closed-note-tip">
+          <strong>⚠️ 2025년 전체 집계 안내</strong>
+          2025년 전체(통합) 집계에는 운영 종료된 매장 2개가 포함되어 있습니다.<br><br>
+          · <b>퀴즈노스</b> — 2025년 1월만 운영 (매출 14.9M)<br>
+          · <b>김가네</b> — 2025년 1~2월만 운영 (1월 19.9M, 2월 20.5M)<br><br>
+          브랜드·매장 필터에서는 개별 선택이 불가하며, '전체' 선택 시 집계에만 포함됩니다.
+        </span>
+      </span>
+      <span class="closed-note" id="cgv-ref-note">
+        <span class="closed-note-icon">!</span>
+        <span class="closed-note-label">CGV 참고 표기</span>
+        <span class="closed-note-tip">
+          <strong>⚠️ 2026년 CGV 2지점데모점 안내</strong>
+          CGV 2지점데모점은 외부 위탁 운영 사업장으로, <b>매출은 통합 집계에 미포함</b>입니다.<br><br>
+          · <b>판관비</b>(임차료 월 4,800만 등)만 참고용으로 표기됩니다.<br>
+          · 극장 브랜드 선택 시 판관비 드릴다운에서 확인 가능합니다.<br><br>
+          통합 KPI 수치에는 영향 없으며, 실제 지출 추적 목적으로만 포함됩니다.
+        </span>
+      </span>
+      <div class="vd"></div>
+      <span class="sel-label">기간</span>
+      <div class="month-checks" id="month-checks"></div>
+      <span class="sel-summary" id="sel-summary">전체 선택됨</span>
+    </div>
+
+    <!-- ROW 2: 브랜드 + 매장 -->
+    <div class="sel-row">
+      <span class="sel-label">브랜드</span>
+      <div class="brand-wrap">
+        <div class="brand-row">
+          <button class="br-btn active" id="br-전체" onclick="selectBrand('전체')">전체</button>
+          <button class="br-btn" id="br-INC"  onclick="selectBrand('INC')">INC <span class="arr">▾</span></button>
+          <button class="br-btn" id="br-LIN"  onclick="selectBrand('LIN')">테이블린 <span class="arr">▾</span></button>
+          <button class="br-btn" id="br-극장" onclick="selectBrand('극장')">극장 <span class="arr">▾</span></button>
+          <button class="br-btn" id="br-본사" onclick="selectBrand('본사')">본사 <span class="arr">▾</span></button>
+        </div>
+        <!-- 매장 세부 선택 -->
+        <div class="store-panel" id="store-panel"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi-card c1">
+      <div class="kpi-info-btn">?</div>
+      <div class="kpi-tooltip"><strong>총 매출</strong>선택된 브랜드·매장·월 기준 매출 합계입니다. 필터 미선택 시 전체 기간 합산으로 표시됩니다.<br><br><span id="kpi-hq-note" style="display:none;color:#fdcb6e;font-size:11px;">⚠️ 본사 매출은 CGV 등 위탁 사업장의 실제 발생 매출로 구성된 기타매출입니다. 일반 매장 매출과 성격이 다릅니다.</span></div>
+      <div class="kpi-lbl">총 매출</div><div class="kpi-val neu" id="kv-rev">—</div><div class="kpi-sub" id="ks-rev">—</div><div class="kpi-cmp" id="kc-rev"></div>
+      <div id="hq-rev-badge" style="display:none;margin-top:5px;padding:3px 7px;background:#fff8e1;border:1px solid #fdcb6e;border-radius:6px;font-size:10px;color:#7d5a00;line-height:1.4;">⚠️ 본사 매출 = CGV 등 위탁 사업장 기타매출</div>
+    </div>
+    <div class="kpi-card c2">
+      <div class="kpi-info-btn">?</div>
+      <div class="kpi-tooltip"><strong>매출총이익률 (GP%)</strong>(매출 − 원가) ÷ 매출 × 100. 식재료·소모품 등 직접 원가를 제외하고 남는 이익 비율입니다. 높을수록 원가 효율이 좋습니다.</div>
+      <div class="kpi-lbl">매출총이익률 (GP%)</div><div class="kpi-val" id="kv-gp">—</div><div class="kpi-sub" id="ks-gp">—</div><div class="kpi-cmp" id="kc-gp"></div>
+    </div>
+    <div class="kpi-card c3">
+      <div class="kpi-info-btn">?</div>
+      <div class="kpi-tooltip"><strong>영업이익</strong>매출총이익에서 판관비(인건비·임차료·에너지 등)를 차감한 수치입니다. 실제 영업 활동의 수익성을 나타냅니다.</div>
+      <div class="kpi-lbl">영업이익</div><div class="kpi-val" id="kv-op">—</div><div class="kpi-sub" id="ks-op">—</div><div class="kpi-cmp" id="kc-op"></div>
+    </div>
+    <div class="kpi-card c4">
+      <div class="kpi-info-btn">?</div>
+      <div class="kpi-tooltip"><strong>EBITDA</strong>영업이익 + 감가상각비. 설비투자 비용을 제외한 현금 창출 능력을 나타내며, 매장 간 수익성 비교에 유용합니다.</div>
+      <div class="kpi-lbl">EBITDA</div><div class="kpi-val" id="kv-eb">—</div><div class="kpi-sub" id="ks-eb">—</div><div class="kpi-cmp" id="kc-eb"></div>
+    </div>
+  </div>
+
+  <!-- KPI 2행: 비율 지표 -->
+  <div class="kpi-grid" style="margin-top:-4px;">
+    <div class="kpi-card c5">
+      <div class="kpi-info-btn">?</div>
+      <div class="kpi-tooltip"><strong>원가율</strong>원가 ÷ 매출 × 100. 식재료·소모품 등 직접 원가가 매출에서 차지하는 비율로, 낮을수록 좋습니다. FNB 업계 평균 30~40% 수준.</div>
+      <div class="kpi-lbl">원가율</div><div class="kpi-val2 neu" id="kv2-cost">—</div><div class="kpi-sub" id="ks2-cost">—</div><div class="kpi-cmp" id="kc2-cost"></div>
+    </div>
+    <div class="kpi-card c6">
+      <div class="kpi-info-btn">?</div>
+      <div class="kpi-tooltip"><strong>인건비율</strong>인건비 ÷ 매출 × 100. 직원 급여·퇴직급여·복리후생 합산. FNB에서 가장 큰 고정비로, 25~35% 이하가 적정 수준입니다.</div>
+      <div class="kpi-lbl">인건비율</div><div class="kpi-val2 neu" id="kv2-labor">—</div><div class="kpi-sub" id="ks2-labor">—</div><div class="kpi-cmp" id="kc2-labor"></div>
+    </div>
+    <div class="kpi-card c7">
+      <div class="kpi-info-btn">?</div>
+      <div class="kpi-tooltip"><strong>임차료율</strong>임차료 ÷ 매출 × 100. 고정 임차료가 매출 대비 얼마나 부담되는지를 나타냅니다. 10% 이하가 권장 수준입니다.<br><br><span id="kpi-hq-rent-note" style="display:none;color:#fdcb6e;font-size:11px;">⚠️ 본사 임차료에는 CGV 2지점데모점(2지점데모CNM) 위탁 사업장 임차료(월 4,800만)가 포함되어 있습니다.</span></div>
+      <div class="kpi-lbl">임차료율</div><div class="kpi-val2 neu" id="kv2-rent">—</div><div class="kpi-sub" id="ks2-rent">—</div><div class="kpi-cmp" id="kc2-rent"></div>
+      <div id="hq-rent-badge" style="display:none;margin-top:5px;padding:3px 7px;background:#fff8e1;border:1px solid #fdcb6e;border-radius:6px;font-size:10px;color:#7d5a00;line-height:1.4;">⚠️ 본사 임차료 = CGV 2지점데모CNM 임차료 포함</div>
+    </div>
+    <div class="kpi-card c8">
+      <div class="kpi-info-btn">?</div>
+      <div class="kpi-tooltip"><strong>영업이익률</strong>영업이익 ÷ 매출 × 100. 판관비까지 차감한 최종 영업 수익성. 양수이면 흑자, 음수이면 적자 매장입니다.</div>
+      <div class="kpi-lbl">영업이익률</div><div class="kpi-val2 neu" id="kv2-op">—</div><div class="kpi-sub" id="ks2-op">—</div><div class="kpi-cmp" id="kc2-op"></div>
+    </div>
+  </div>
+
+  <!-- TREND -->
+  <div class="trend-card" id="trend-card">
+    <div class="card-title" id="trend-title">📈 월별 추이</div>
+    <canvas id="trendChart" height="85"></canvas>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-row">
+    <div class="chart-card"><div class="card-title">📊 매장별 매출 & 영업이익 (백만원)</div><div id="storeChartWrap" style="position:relative;width:100%"><canvas id="storeChart"></canvas></div></div>
+    <div class="chart-card"><div class="card-title">📊 판관비 항목별 구성 <span style="font-size:10px;color:#aaa;font-weight:400">단위 표시·비중%</span></div><canvas id="sgaChart" height="230"></canvas><div id="sgaTotal" style="text-align:right;font-size:10px;color:#aaa;margin-top:4px;"></div></div>
+  </div>
+
+  <!-- TABLES -->
+  <div class="bottom-row">
+    <div class="table-card"><div class="card-title">📋 손익계산서 요약</div><div class="scroll"><table id="plTable"></table></div></div>
+    <div class="table-card"><div class="card-title">🏪 매장별 손익 현황</div><div class="scroll"><table id="storeTable"></table></div></div>
+  </div>
+
+</div>
+<div class="footer">인케이코리아(주) 내부 관리용 · 외부 공유 금지</div>
+
+<script>
+// ============================================================
+// GLOBALS (data.json에서 fetch 로드)
+// ============================================================
+let ALL_MONTHS = {}, ALL_CONS = {}, ALL_STORES = {}, ALL_SGA_SUB = {};
+
+// ============================================================
+// STATE
+// ============================================================
+let selYears  = new Set(['2026']);  // 다중 연도 선택
+let selBrands = new Set();          // 빈 Set = 전체, 값 있으면 해당 브랜드들
+let selMonths = new Set();          // empty = 선택된 연도들의 전체 월
+let selStores = new Set();          // empty = 선택된 브랜드들의 전체 매장
+let CY = '2026';                    // 파생: 선택된 연도 중 최신 (YoY 기준용)
+let chartStore=null, chartSga=null, chartTrend=null;
+let plExpanded = { '매출': false, '원가': false, '판관비': false };
+let plSubExpanded = {};  // 판관비 세부항목 2단계 토글 { '인건비': false, '에너지': false, ... }
+
+function togglePLSub(cat) {
+  plSubExpanded[cat] = !plSubExpanded[cat];
+  updatePL();
+}
+
+function syncCY() {
+  CY = [...selYears].sort().reverse()[0] || '2026';
+  // 2025 선택 시 폐업매장 안내 툴팁 표시
+  const note = document.getElementById('closed-store-note');
+  if (note) note.classList.toggle('visible', selYears.has('2025'));
+  // 2026 선택 시 CGV 참고 노트 표시
+  const cgvNote = document.getElementById('cgv-ref-note');
+  if (cgvNote) cgvNote.classList.toggle('visible', selYears.has('2026'));
+}
+
+function togglePL(group) {
+  plExpanded[group] = !plExpanded[group];
+  updatePL();
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+// ── 다중 연도 지원 헬퍼 ──────────────────────────────────────
+// 선택된 모든 연도의 활성 월 [{yr, m}] 배열
+function getActiveYMs() {
+  const pairs = [];
+  for (const yr of [...selYears].sort()) {
+    const all = ALL_MONTHS[yr] || [];
+    const active = selMonths.size===0 ? all : all.filter(m=>selMonths.has(m));
+    active.forEach(m => pairs.push({yr, m}));
+  }
+  return pairs;
+}
+
+// 필터링된 매장 이름 목록 (다중 연도 + 다중 브랜드)
+function getFilteredStoreNames() {
+  const names = new Set();
+  for (const yr of selYears) {
+    Object.entries(ALL_STORES[yr]||{}).forEach(([n,s]) => {
+      if (selBrands.size>0 && !selBrands.has(s.brand)) return;
+      if (selStores.size>0 && !selStores.has(n)) return;
+      // cgvRef 매장은 명시적으로 개별 선택했을 때만 포함 (브랜드 자동집계 제외)
+      if (s.cgvRef && selStores.size===0) return;
+      names.add(n);
+    });
+  }
+  return [...names];
+}
+
+// 매장 단일 집계 (다중 연도 지원)
+function getStoreAggForName(name) {
+  let rev=0,cost=0,gp=0,sga=0,op=0,net=0,ebitda=0;
+  const sga_sub = {};
+  const rev_sub = {};
+  for (const yr of selYears) {
+    const sd = ALL_STORES[yr]?.[name]; if(!sd) continue;
+    const all = ALL_MONTHS[yr]||[];
+    const active = selMonths.size===0 ? all : all.filter(m=>selMonths.has(m));
+    active.forEach(m=>{
+      const d=sd.months?.[m]; if(!d) return;
+      rev+=d.rev||0; cost+=d.cost||0; gp+=d.gp||0;
+      sga+=d.sga||0; op+=d.op||0; net+=d.net||0; ebitda+=d.ebitda||0;
+      Object.entries(d.sga_sub||{}).forEach(([cat,subs])=>{
+        if(!sga_sub[cat]) sga_sub[cat]={};
+        Object.entries(subs).forEach(([k,v])=>{ sga_sub[cat][k]=(sga_sub[cat][k]||0)+v; });
+      });
+      if(d.rev_sub) {
+        Object.entries(d.rev_sub).forEach(([k,v])=>{ rev_sub[k]=(rev_sub[k]||0)+(v||0); });
+      }
+    });
+  }
+  return {rev,cost,gp,sga,op,net,ebitda,sga_sub,rev_sub:Object.keys(rev_sub).length?rev_sub:null};
+}
+
+const M = v => {
+  if (!v) return '0';
+  const a=Math.abs(v), s=v<0?'-':'';
+  if (a>=1e8) {
+    const uk = Math.floor(a/1e8);
+    const man = Math.floor((a % 1e8) / 1e4);
+    if (man === 0) return s+uk+'억';
+    return s+uk+'억 '+man.toLocaleString()+'만';
+  }
+  if (a>=1e4) {
+    const man = Math.floor(a/1e4);
+    return s+man.toLocaleString()+'만';
+  }
+  return s+Math.floor(a).toLocaleString();
+};
+// 차트 축 전용 간략 포맷 (공간 절약)
+const Mc = v => {
+  if (!v) return '0';
+  const a=Math.abs(v), s=v<0?'-':'';
+  if (a>=1e8)  return s+(a/1e8).toFixed(1)+'억';
+  if (a>=1e7)  return s+(a/1e7).toFixed(1)+'천만';
+  if (a>=1e6)  return s+Math.floor(a/1e6)+'백만';
+  if (a>=1e4)  return s+Math.floor(a/1e4)+'만';
+  return s+Math.floor(a).toLocaleString();
+};
+const P = (a,b) => b?(a/b*100).toFixed(1)+'%':'-';
+
+// 단일 연도 모드에서 활성 월 배열 (YoY/MoM 비교용)
+function getActiveMonths() {
+  const yr = CY;
+  const all = ALL_MONTHS[yr] || [];
+  return selMonths.size===0 ? all : all.filter(m=>selMonths.has(m));
+}
+
+// 필터링된 매장 목록 [{name, {brand}}] (chart/table compat)
+function getFilteredStores() {
+  return getFilteredStoreNames().map(name => {
+    let brand = '?';
+    for (const yr of [...selYears].sort().reverse()) {
+      if (ALL_STORES[yr]?.[name]) { brand = ALL_STORES[yr][name].brand; break; }
+    }
+    return [name, {brand}];
+  });
+}
+
+// SGA 서브항목 합산 (다중 연도 지원)
+function getSgaSubAgg(filtered_sga_sub) {
+  if (filtered_sga_sub) return filtered_sga_sub;
+  const totals = {};
+  for (const yr of selYears) {
+    const sub = ALL_SGA_SUB[yr]; if(!sub) continue;
+    const all = ALL_MONTHS[yr]||[];
+    const active = selMonths.size===0 ? all : all.filter(m=>selMonths.has(m));
+    active.forEach(m=>{
+      const md=sub[m]; if(!md) return;
+      Object.entries(md).forEach(([cat,subs])=>{
+        if(!totals[cat]) totals[cat]={};
+        Object.entries(subs).forEach(([k,v])=>{ totals[cat][k]=(totals[cat][k]||0)+v; });
+      });
+    });
+  }
+  return totals;
+}
+
+// ── 다중 연도·브랜드 인식 집계 ──────────────────────────────
+function getAggData() {
+  const isFiltered = selBrands.size>0 || selStores.size>0;
+  if (!isFiltered) {
+    // CONSOLIDATED 기준 (다중 연도 합산)
+    const keys = ['매출','원가','매출총이익','판관비','영업이익','EBITDA','당기순이익'];
+    const mkeys = ['상품매출','티켓매출','도서매출','배달매출','기타매출'];
+    const pkeys = ['인건비','감가상각비','지급임차료','에너지','지급수수료','건물관리비','외주용역비','기타비용'];
+    const r = { 매출세부:{}, 판관비세부:{} };
+    keys.forEach(k=>r[k]=0);
+    mkeys.forEach(k=>r.매출세부[k]=0);
+    pkeys.forEach(k=>r.판관비세부[k]=0);
+    for (const yr of selYears) {
+      const cons = ALL_CONS[yr]; if(!cons) continue;
+      const all = ALL_MONTHS[yr]||[];
+      const active = selMonths.size===0 ? all : all.filter(m=>selMonths.has(m));
+      active.forEach(m=>{
+        const d=cons[m]; if(!d) return;
+        keys.forEach(k=>r[k]+=(d[k]||0));
+        mkeys.forEach(k=>r.매출세부[k]+=(d.매출세부?.[k]||0));
+        pkeys.forEach(k=>r.판관비세부[k]+=(d.판관비세부?.[k]||0));
+      });
+    }
+    // CONSOLIDATED에서도 매장 sga_sub 집계 (2단계 토글용)
+    const consSgaSub = {};
+    for (const yr of selYears) {
+      const yrStores = ALL_STORES[yr]; if(!yrStores) continue;
+      const all = ALL_MONTHS[yr]||[];
+      const active = selMonths.size===0 ? all : all.filter(m=>selMonths.has(m));
+      Object.entries(yrStores).forEach(([name,sd])=>{
+        if(sd.cgvRef) return;
+        active.forEach(m=>{
+          const md=sd.months?.[m]; if(!md) return;
+          Object.entries(md.sga_sub||{}).forEach(([cat,subs])=>{
+            if(!consSgaSub[cat]) consSgaSub[cat]={};
+            if(typeof subs==='object') {
+              Object.entries(subs).forEach(([k,v])=>{ consSgaSub[cat][k]=(consSgaSub[cat][k]||0)+v; });
+            }
+          });
+        });
+      });
+    }
+    return {...r, _partial:false, _sga_sub:consSgaSub};
+  }
+
+  // 필터된 매장 집계 (다중 연도)
+  const names = getFilteredStoreNames();
+  let rev=0,cost=0,gp=0,sga=0,op=0,net=0,ebitda=0;
+  const sga_sub = {};
+  const rev_sub_agg = {};
+  names.forEach(name=>{
+    const a = getStoreAggForName(name);
+    rev+=a.rev; cost+=a.cost; gp+=a.gp; sga+=a.sga;
+    op+=a.op; net+=a.net; ebitda+=a.ebitda;
+    Object.entries(a.sga_sub).forEach(([cat,subs])=>{
+      if(!sga_sub[cat]) sga_sub[cat]={};
+      Object.entries(subs).forEach(([k,v])=>{ sga_sub[cat][k]=(sga_sub[cat][k]||0)+v; });
+    });
+    if(a.rev_sub) {
+      Object.entries(a.rev_sub).forEach(([k,v])=>{ rev_sub_agg[k]=(rev_sub_agg[k]||0)+(v||0); });
+    }
+  });
+  const pd = {};
+  ['인건비','감가상각비','지급임차료','에너지','지급수수료','건물관리비','외주용역비','기타비용'].forEach(k=>{
+    const t=Object.values(sga_sub[k]||{}).reduce((s,v)=>s+v,0);
+    if(t) pd[k]=t;
+  });
+  const ms = Object.keys(rev_sub_agg).length ? rev_sub_agg : null;
+  return {매출:rev,원가:cost,매출총이익:gp,판관비:sga,영업이익:op,EBITDA:ebitda,당기순이익:net,
+    매출세부:ms,판관비세부:pd,_sga_sub:sga_sub,_partial:false};
+}
+
+// 한국어 필드명 → 스토어 단축명 매핑
+const KR_SHORT = {'매출':'rev','원가':'cost','매출총이익':'gp','판관비':'sga','영업이익':'op','EBITDA':'ebitda','당기순이익':'net'};
+
+// 전년 동기 대비 (YoY) — 다중 연도 선택 시 비표시
+function getYoY(field, d) {
+  if (selYears.size > 1) return '';
+  const prevYear = String(parseInt(CY)-1);
+  if (!ALL_CONS[prevYear]) return '';
+  const months = getActiveMonths();
+  const isFiltered = selBrands.size>0 || selStores.size>0;
+  let prevVal=0, hasData=false;
+  if (!isFiltered) {
+    const prevCons = ALL_CONS[prevYear];
+    months.forEach(m=>{ if(prevCons[m]&&prevCons[m][field]!==undefined){prevVal+=(prevCons[m][field]||0);hasData=true;} });
+  } else {
+    const shortF = KR_SHORT[field]; if(!shortF) return '';
+    const prevStores = ALL_STORES[prevYear]; if(!prevStores) return '';
+    getFilteredStoreNames().forEach(name=>{
+      const sd=prevStores[name]; if(!sd) return;
+      months.forEach(m=>{ const md=sd.months?.[m]; if(md&&md[shortF]!==undefined){prevVal+=(md[shortF]||0);hasData=true;} });
+    });
+  }
+  if(!hasData||prevVal===0) return '';
+  const diff=d[field]-prevVal, pct=diff/Math.abs(prevVal)*100, up=diff>=0;
+  return `<span class="yoy ${up?'yoy-up':'yoy-dn'}">${up?'▲':'▼'}${Math.abs(pct).toFixed(1)}% YoY(전년 대비)</span>`;
+}
+
+// 전월 대비 (MoM) — 단일 연도·단일 월 선택 시만 표시
+function getMoM(field, d) {
+  if (selYears.size > 1) return '';
+  const months = getActiveMonths();
+  if (months.length !== 1) return '';
+  const curNum = parseInt(months[0]);
+  let prevMonth, prevYear;
+  if (curNum > 1) {
+    prevMonth = (curNum-1)+'월'; prevYear = CY;
+  } else {
+    prevMonth = '12월'; prevYear = String(parseInt(CY)-1);
+    if (!ALL_MONTHS[prevYear]) return '';
+  }
+  const isFiltered = selBrands.size>0 || selStores.size>0;
+  let prevVal=0, hasData=false;
+  if (!isFiltered) {
+    const prevCons = ALL_CONS[prevYear];
+    if(!prevCons||!prevCons[prevMonth]) return '';
+    prevVal = prevCons[prevMonth][field]||0;
+    hasData = prevVal!==0;
+  } else {
+    const shortF = KR_SHORT[field]; if(!shortF) return '';
+    const prevStores = ALL_STORES[prevYear]; if(!prevStores) return '';
+    getFilteredStoreNames().forEach(name=>{
+      const sd=prevStores[name]; if(!sd) return;
+      const md=sd.months?.[prevMonth]; if(!md) return;
+      if(md[shortF]!==undefined){prevVal+=md[shortF]||0;hasData=true;}
+    });
+  }
+  if(!hasData||prevVal===0) return '';
+  const diff=d[field]-prevVal, pct=diff/Math.abs(prevVal)*100, up=diff>=0;
+  return `<span class="yoy ${up?'yoy-up':'yoy-dn'}">${up?'▲':'▼'}${Math.abs(pct).toFixed(1)}% MoM(전월 대비)</span>`;
+}
+
+// 이전 기간 집계 (비율 비교용) — 다중 연도 선택 시 null
+function getPrevPeriodAgg(monthsList, yearStr) {
+  if(selYears.size>1) return null;
+  if(!ALL_MONTHS[yearStr]) return null;
+  const isFiltered = selBrands.size>0 || selStores.size>0;
+  let rev=0,cost=0,sga=0,op=0;
+  const sgaSub = {};
+  if(!isFiltered) {
+    const cons=ALL_CONS[yearStr]; if(!cons) return null;
+    let has=false;
+    monthsList.forEach(m=>{
+      if(!cons[m]) return; has=true;
+      rev+=cons[m]['매출']||0; cost+=cons[m]['원가']||0;
+      sga+=cons[m]['판관비']||0; op+=cons[m]['영업이익']||0;
+      Object.entries(cons[m]['판관비세부']||{}).forEach(([k,v])=>{sgaSub[k]=(sgaSub[k]||0)+v;});
+    });
+    if(!has) return null;
+  } else {
+    const prevStores=ALL_STORES[yearStr]; if(!prevStores) return null;
+    let has=false;
+    getFilteredStoreNames().forEach(name=>{
+      const sd=prevStores[name]; if(!sd) return;
+      monthsList.forEach(m=>{
+        const md=sd.months?.[m]; if(!md) return; has=true;
+        rev+=md.rev||0; cost+=md.cost||0; sga+=md.sga||0; op+=md.op||0;
+        Object.entries(md.sga_sub||{}).forEach(([cat,subs])=>{
+          if(!sgaSub[cat]) sgaSub[cat]=0;
+          Object.values(subs).forEach(v=>sgaSub[cat]+=v);
+        });
+      });
+    });
+    if(!has) return null;
+  }
+  return {rev,cost,sga,op,sgaSub};
+}
+
+// 비율 비교 뱃지 (pp 단위)
+function getRatioCmpBadge(curRatio, prevAgg, numFn, denFn, lbl, lowerIsBetter=true) {
+  if(!prevAgg || !prevAgg.rev) return '';
+  const den = denFn(prevAgg);
+  if(!den) return '';
+  const prevRatio = numFn(prevAgg) / den * 100;
+  const diff = curRatio - prevRatio;
+  if(Math.abs(diff) < 0.05) return '';
+  // lowerIsBetter: 원가율/인건비율/임차료율은 낮을수록 좋음
+  const isGood = lowerIsBetter ? diff<=0 : diff>=0;
+  const cls = isGood ? 'yoy-up' : 'yoy-dn';
+  const arrow = diff>0 ? '▲' : '▼';
+  return `<span class="yoy ${cls}">${arrow}${Math.abs(diff).toFixed(1)}pp ${lbl}</span>`;
+}
+
+// ============================================================
+// BUILD MONTH CHECKBOXES (다중 연도 지원)
+// ============================================================
+function getAvailMonths() {
+  const seen = new Set(), list = [];
+  for (const yr of [...selYears].sort()) {
+    (ALL_MONTHS[yr]||[]).forEach(m=>{ if(!seen.has(m)){seen.add(m);list.push(m);} });
+  }
+  return list;
+}
+
+function buildMonthChecks() {
+  const c = document.getElementById('month-checks');
+  c.innerHTML = '';
+  const months = getAvailMonths();
+
+  const allEl = document.createElement('label');
+  allEl.className = 'cb-item all-cb' + (selMonths.size===0?' checked':'');
+  allEl.innerHTML = `<input type="checkbox" ${selMonths.size===0?'checked':''}> 전체`;
+  allEl.onclick = e => { e.preventDefault(); toggleAllMonths(); };
+  c.appendChild(allEl);
+
+  months.forEach(m=>{
+    const el = document.createElement('label');
+    el.className = 'cb-item' + (selMonths.has(m)?' checked':'');
+    el.dataset.m = m;
+    el.innerHTML = `<input type="checkbox" ${selMonths.has(m)?'checked':''}> ${m}`;
+    el.onclick = e => { e.preventDefault(); toggleMonth(m); };
+    c.appendChild(el);
+  });
+  updateSummary();
+}
+
+function toggleAllMonths() { selMonths.clear(); buildMonthChecks(); updateAll(); }
+
+function toggleMonth(m) {
+  if(selMonths.has(m)) selMonths.delete(m); else selMonths.add(m);
+  if(selMonths.size===getAvailMonths().length) selMonths.clear();
+  buildMonthChecks(); updateAll();
+}
+
+function updateSummary() {
+  const sm = document.getElementById('sel-summary');
+  const avail = getAvailMonths();
+  const active = selMonths.size===0 ? avail : avail.filter(m=>selMonths.has(m));
+  const storeCount = selStores.size>0 ? ` · 매장 ${selStores.size}개` : '';
+  const brandPart  = selBrands.size>0 ? ` · ${[...selBrands].join('+')}` : '';
+  const yearPart   = selYears.size>1 ? [...selYears].sort().join('+')+'년 ' : CY+'년 ';
+  sm.textContent = selMonths.size===0
+    ? `${yearPart}전체 ${avail.length}개월${brandPart}${storeCount}`
+    : `${yearPart}${active.length}개월: ${active.join(', ')}${brandPart}${storeCount}`;
+}
+
+// ============================================================
+// BRAND + STORE PANEL (다중 브랜드 지원)
+// ============================================================
+function selectBrand(brand) {
+  if (brand==='전체') {
+    selBrands.clear();
+  } else {
+    if(selBrands.has(brand)) selBrands.delete(brand);
+    else selBrands.add(brand);
+  }
+  selStores.clear();
+  // 버튼 상태 업데이트
+  document.getElementById('br-전체').classList.toggle('active', selBrands.size===0);
+  ['INC','LIN','극장','본사'].forEach(b=>{
+    const btn=document.getElementById('br-'+b);
+    if(btn) btn.classList.toggle('active', selBrands.has(b));
+  });
+  buildStorePanel(); updateAll();
+}
+
+function buildStorePanel() {
+  const panel = document.getElementById('store-panel');
+  if(selBrands.size===0){ panel.className='store-panel'; return; }
+  panel.className='store-panel open';
+
+  // 선택된 브랜드들의 매장 목록 (다중 연도 합산)
+  const brandStoreMap = {};
+  for(const yr of [...selYears].sort().reverse()){
+    Object.entries(ALL_STORES[yr]||{}).forEach(([n,s])=>{
+      if(!selBrands.has(s.brand)) return;
+      if(!brandStoreMap[s.brand]) brandStoreMap[s.brand]=[];
+      if(!brandStoreMap[s.brand].includes(n)) brandStoreMap[s.brand].push(n);
+    });
+  }
+
+  panel.innerHTML='';
+  const allEl=document.createElement('label');
+  allEl.className='store-cb-item'+(selStores.size===0?' checked':'');
+  allEl.innerHTML='전체';
+  allEl.onclick=e=>{e.preventDefault();selStores.clear();buildStorePanel();updateAll();};
+  panel.appendChild(allEl);
+
+  Object.entries(brandStoreMap).forEach(([brand,names])=>{
+    if(selBrands.size>1){
+      const lbl=document.createElement('span');
+      lbl.className='panel-label'; lbl.textContent=brand+':';
+      panel.appendChild(lbl);
+    }
+    names.forEach(name=>{
+      // cgvRef 매장 판별 (어떤 연도든 존재하면)
+      const isCgvRef = [...selYears].some(yr=>ALL_STORES[yr]?.[name]?.cgvRef);
+      const el=document.createElement('label');
+      el.className='store-cb-item'+(selStores.has(name)?' checked':'')+(isCgvRef?' cgv-ref-item':'');
+      el.innerHTML=`<input type="checkbox" ${selStores.has(name)?'checked':''}> ${name}${isCgvRef?' <span style="font-size:10px;color:#f0a500;opacity:.8">(참고용)</span>':''}`;
+      el.onclick=e=>{e.preventDefault();toggleStore(name);};
+      panel.appendChild(el);
+    });
+  });
+  updateSummary();
+}
+
+function toggleStore(name) {
+  if(selStores.has(name)) selStores.delete(name); else selStores.add(name);
+  // 모든 선택 브랜드의 일반 매장(cgvRef 제외)이 전부 선택되면 초기화
+  const allBrandStores=new Set();
+  for(const yr of selYears){
+    Object.entries(ALL_STORES[yr]||{}).forEach(([n,s])=>{
+      if(selBrands.has(s.brand) && !s.cgvRef) allBrandStores.add(n);
+    });
+  }
+  if([...selStores].filter(n=>![...selYears].some(yr=>ALL_STORES[yr]?.[n]?.cgvRef)).length===allBrandStores.size && allBrandStores.size>0) selStores.clear();
+  buildStorePanel(); updateAll();
+}
+
+// ============================================================
+// YEAR SELECT (다중 선택 토글)
+// ============================================================
+function selectYear(y) {
+  if(selYears.has(y)){
+    if(selYears.size>1) selYears.delete(y); // 마지막 하나는 해제 불가
+  } else {
+    selYears.add(y);
+  }
+  syncCY();
+  selMonths.clear();
+  ['2025','2026'].forEach(yr=>{
+    document.getElementById('yr-'+yr).classList.toggle('active', selYears.has(yr));
+  });
+  buildMonthChecks(); buildStorePanel(); updateAll();
+}
+
+// ============================================================
+// TREND CHART (다중 연도 지원)
+// ============================================================
+function updateTrend() {
+  const isFiltered = selBrands.size>0 || selStores.size>0;
+  const names = getFilteredStoreNames();
+  const multiYr = selYears.size > 1;
+
+  // 타임라인 구성: 선택된 연도 × 항상 12개월 (데이터 없는 월은 빈 칸)
+  const ALL_12 = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const timeline = [];
+  for(const yr of [...selYears].sort()){
+    ALL_12.forEach(m=>{
+      timeline.push({yr, m, label: multiYr ? yr.slice(2)+'년 '+m : m, hasData: (ALL_MONTHS[yr]||[]).includes(m)});
+    });
+  }
+
+  // 활성 타임라인 항목 판단
+  const isActive = ({yr,m}) => selMonths.size===0 || selMonths.has(m);
+
+  let revs, ops;
+  if(!isFiltered){
+    revs = timeline.map(t=> !t.hasData ? null : (ALL_CONS[t.yr]?.[t.m]?.매출||0)/1e6);
+    ops  = timeline.map(t=> !t.hasData ? null : (ALL_CONS[t.yr]?.[t.m]?.영업이익||0)/1e6);
+  } else {
+    revs = timeline.map(t=>{
+      if(!t.hasData) return null;
+      const sum=names.reduce((s,name)=>s+(ALL_STORES[t.yr]?.[name]?.months?.[t.m]?.rev||0),0);
+      return sum>0 ? +(sum/1e6).toFixed(1) : null;
+    });
+    ops = timeline.map(t=>{
+      if(!t.hasData) return null;
+      const hasRev=names.some(name=>(ALL_STORES[t.yr]?.[name]?.months?.[t.m]?.rev||0)>0);
+      if(!hasRev) return null;
+      return +(names.reduce((s,name)=>s+(ALL_STORES[t.yr]?.[name]?.months?.[t.m]?.op||0),0)/1e6).toFixed(1);
+    });
+  }
+
+  const revColors = timeline.map(t=>isActive(t)?'rgba(74,144,226,.8)':'rgba(74,144,226,.22)');
+  const revBorder = timeline.map(t=>isActive(t)?'rgba(74,144,226,1)':'rgba(74,144,226,.35)');
+  const opColors  = timeline.map((t,i)=>{
+    if(ops[i]===null) return 'transparent';
+    const dim=!isActive(t);
+    return ops[i]>=0?(dim?'rgba(0,184,148,.25)':'rgba(0,184,148,.8)'):(dim?'rgba(225,112,85,.25)':'rgba(225,112,85,.8)');
+  });
+
+  const filterLabel = isFiltered
+    ? (selStores.size>0?[...selStores].join('·'):[...selBrands].join('+'))
+    : '전체';
+  const yearLabel = multiYr ? [...selYears].sort().join('+')+'년' : CY+'년';
+  document.getElementById('trend-title').textContent =
+    `📈 ${yearLabel} 월별 매출·영업이익 추이 — ${filterLabel}`;
+
+  if (chartTrend) chartTrend.destroy();
+  chartTrend = new Chart(document.getElementById('trendChart').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:timeline.map(t=>t.label),
+      datasets:[
+        { label:'매출', data:revs,
+          backgroundColor:revColors, borderColor:revBorder,
+          borderWidth:1, borderRadius:3, yAxisID:'y1',
+          spanGaps:false },
+        { label:'영업이익', data:ops,
+          backgroundColor:opColors, borderColor:opColors.map(c=>c.replace(/[\d.]+\)$/,'1)')),
+          borderWidth:1, borderRadius:3, yAxisID:'y2',
+          spanGaps:false }
+      ]
+    },
+    options:{
+      responsive:true, interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{position:'top',labels:{font:{size:11},boxWidth:12}},
+        tooltip:{callbacks:{
+          label: c => {
+            if (c.parsed.y===null) return ` ${c.dataset.label}: 데이터 없음`;
+            return ` ${c.dataset.label}: ${M(c.parsed.y*1e6)}`;
+          }
+        }}
+      },
+      scales:{
+        y1:{type:'linear',position:'left',grid:{color:'#f0f0f0'},
+          ticks:{callback:v=>v===null?'':Mc(v*1e6),font:{size:10}}},
+        y2:{type:'linear',position:'right',grid:{display:false},
+          ticks:{callback:v=>v===null?'':Mc(v*1e6),font:{size:10}}},
+        x:{grid:{display:false},ticks:{font:{size:10}}}
+      }
+    }
+  });
+}
+
+// ============================================================
+// STORE CHART
+// ============================================================
+function updateStoreChart() {
+  const stores = getFilteredStores()
+    .map(([n])=>{ const v=getStoreAggForName(n); return{n,rev:v.rev,op:v.op}; })
+    .filter(s=>s.rev>0).sort((a,b)=>b.rev-a.rev);
+  if(chartStore) chartStore.destroy();
+  const storeH = Math.max(200, stores.length * 38);
+  document.getElementById('storeChartWrap').style.height = storeH + 'px';
+  chartStore = new Chart(document.getElementById('storeChart').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:stores.map(s=>s.n),
+      datasets:[
+        {label:'매출(백만)',data:stores.map(s=>+(s.rev/1e6).toFixed(1)),backgroundColor:'rgba(74,144,226,.65)',borderColor:'rgba(74,144,226,1)',borderWidth:1,borderRadius:4},
+        {label:'영업이익(백만)',data:stores.map(s=>+(s.op/1e6).toFixed(1)),
+          backgroundColor:stores.map(s=>s.op>=0?'rgba(0,184,148,.75)':'rgba(225,112,85,.75)'),
+          borderColor:stores.map(s=>s.op>=0?'rgba(0,184,148,1)':'rgba(225,112,85,1)'),borderWidth:1,borderRadius:4}
+      ]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top',labels:{font:{size:11},boxWidth:12}},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${Mc(c.parsed.x*1e6)}`}}
+      },
+      scales:{
+        x:{grid:{color:'#f0f0f0'},ticks:{callback:v=>Mc(v*1e6),font:{size:10}}},
+        y:{grid:{display:false},ticks:{font:{size:10},color:'#444'}}
+      }
+    }
+  });
+}
+
+// ============================================================
+// SGA CHART — 가로 막대 (항목별 금액 + 비중)
+// ============================================================
+function updateSgaChart() {
+  const d = getAggData();
+
+  document.getElementById('sgaTotal').innerHTML = '';
+  const COLORS = ['#4a90e2','#e17055','#00b894','#fdcb6e','#6c5ce7','#a29bfe','#fd79a8','#b2bec3'];
+
+  // 금액 기준 내림차순 정렬
+  const items = Object.entries(d.판관비세부)
+    .map(([k,v],i)=>({k,v,c:COLORS[i%COLORS.length]}))
+    .sort((a,b)=>b.v-a.v);
+
+  const total = items.reduce((s,i)=>s+i.v, 0);
+
+  // 총계 표시
+  document.getElementById('sgaTotal').textContent = `판관비 합계: ${M(total)}`;
+
+  // 서브항목 조회: 필터된 경우 매장 집계, 전체는 통합 기준
+  const sgaSub = getSgaSubAgg(d._sga_sub || null);
+
+  if(chartSga) chartSga.destroy();
+  chartSga = new Chart(document.getElementById('sgaChart').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels: items.map(i=>i.k),
+      datasets:[{
+        data: items.map(i=>+(i.v/1e6).toFixed(1)),
+        backgroundColor: items.map(i=>i.c),
+        borderColor:     items.map(i=>i.c),
+        borderWidth:0, borderRadius:4,
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          // 툴팁 배경 스타일
+          backgroundColor: 'rgba(26,26,46,0.93)',
+          padding: 10,
+          titleFont:{size:12, weight:'bold'},
+          bodyFont:{size:11},
+          callbacks:{
+            title: ctx => {
+              const cat = ctx[0].label;
+              const val = ctx[0].parsed.x * 1e6;
+              const pct = (val / total * 100).toFixed(1);
+              return `${cat}  ${M(val)} (${pct}%)`;
+            },
+            label: ctx => {
+              const cat = ctx.label;
+              const subs = sgaSub[cat];
+              if (!subs || Object.keys(subs).length === 0) return [];
+              const subTotal = Object.values(subs).reduce((s,v)=>s+v,0);
+              return Object.entries(subs)
+                .sort((a,b)=>b[1]-a[1])
+                .map(([k,v]) => {
+                  const p = (v/subTotal*100).toFixed(0);
+                  return `  ${k}: ${M(v)} (${p}%)`;
+                });
+            }
+          }
+        }
+      },
+      scales:{
+        x:{
+          grid:{color:'#f3f3f3'},
+          ticks:{callback: v => Mc(v*1e6), font:{size:9}}
+        },
+        y:{
+          grid:{display:false},
+          ticks:{font:{size:11}, color:'#444'}
+        }
+      }
+    },
+    plugins:[{
+      id:'sgaLabels',
+      afterDatasetsDraw(chart){
+        const {ctx, scales:{x,y}} = chart;
+        const meta = chart.getDatasetMeta(0);
+        ctx.save();
+        ctx.font = '9px "Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+        ctx.fillStyle = '#666';
+        meta.data.forEach((bar,i)=>{
+          const pct = (items[i].v/total*100).toFixed(1)+'%';
+          ctx.fillText(pct, x.getPixelForValue(items[i].v/1e6)+4, bar.y+3.5);
+        });
+        ctx.restore();
+      }
+    }]
+  });
+}
+
+// ============================================================
+// KPI
+// ============================================================
+function updateKPI() {
+  const d = getAggData(), R = d.매출;
+  const set=(id,v,c)=>{const e=document.getElementById(id);e.textContent=v;e.className='kpi-val '+c;};
+  const na = (id,sub='')=>{
+    set(id,'—','neu');
+    document.getElementById(id.replace('kv-','ks-')).textContent=sub||'필터 시 집계 불가';
+    document.getElementById(id.replace('kv-','kc-')).innerHTML='';
+  };
+
+  // 본사 포함 여부에 따른 매출 성격 안내
+  const hqIncluded = selBrands.has('본사') || (selBrands.size===0 && getFilteredStoreNames().includes('본사'));
+  const hqBadge = document.getElementById('hq-rev-badge');
+  const hqNote = document.getElementById('kpi-hq-note');
+  if (hqBadge) hqBadge.style.display = hqIncluded ? 'block' : 'none';
+  if (hqNote) hqNote.style.display = hqIncluded ? 'inline' : 'none';
+  // 본사 포함 시 임차료 CGV 안내
+  const hqRentBadge = document.getElementById('hq-rent-badge');
+  const hqRentNote = document.getElementById('kpi-hq-rent-note');
+  if (hqRentBadge) hqRentBadge.style.display = hqIncluded ? 'block' : 'none';
+  if (hqRentNote) hqRentNote.style.display = hqIncluded ? 'inline' : 'none';
+
+  // 매출 (항상 표시)
+  set('kv-rev', M(d.매출), 'neu');
+  if (d._partial) {
+    document.getElementById('ks-rev').textContent = '영업이익률 '+(R?(d.영업이익/R*100).toFixed(1)+'%':'-');
+    document.getElementById('kc-rev').innerHTML = '';
+  } else {
+    document.getElementById('ks-rev').textContent = '원가율 '+P(d.원가,R)+' | 총이익 '+M(d.매출총이익);
+    const cmp = f => [getYoY(f,d), getMoM(f,d)].filter(Boolean).join(' ');
+    document.getElementById('kc-rev').innerHTML = cmp('매출');
+  }
+
+  // GP%
+  if (d.매출총이익 != null) {
+    const gp=(d.매출총이익/R*100).toFixed(1);
+    set('kv-gp',gp+'%',parseFloat(gp)>=50?'pos':'neg');
+    document.getElementById('ks-gp').textContent='매출총이익 '+M(d.매출총이익);
+    const cmpGp = [getYoY('매출총이익',d), getMoM('매출총이익',d)].filter(Boolean).join(' ');
+    document.getElementById('kc-gp').innerHTML=cmpGp;
+  } else { na('kv-gp','—'); }
+
+  // 영업이익
+  set('kv-op', M(d.영업이익), d.영업이익>=0?'pos':'neg');
+  document.getElementById('ks-op').textContent = '영업이익률 '+(R?(d.영업이익/R*100).toFixed(1)+'%':'-')
+    + (d.판관비?' | 판관비 '+M(d.판관비):'');
+  const cmpOp = [getYoY('영업이익',d), getMoM('영업이익',d)].filter(Boolean).join(' ');
+  document.getElementById('kc-op').innerHTML = cmpOp;
+
+  // EBITDA
+  if (d.EBITDA != null) {
+    set('kv-eb', M(d.EBITDA), d.EBITDA>=0?'pos':'neg');
+    document.getElementById('ks-eb').textContent='EBITDA율 '+(d.EBITDA/R*100).toFixed(1)+'%';
+    const cmpEb = [getYoY('EBITDA',d), getMoM('EBITDA',d)].filter(Boolean).join(' ');
+    document.getElementById('kc-eb').innerHTML=cmpEb;
+  } else { na('kv-eb','—'); }
+}
+
+// ============================================================
+// PL TABLE (with toggle sub-rows)
+// ============================================================
+function updatePL() {
+  const d=getAggData(), R=d.매출;
+
+  // 아래부터 상세 표시 (전체·필터 모두)
+  const ti = (g) => `<span class="tog-icon">${plExpanded[g]?'▼':'▶'}</span>`;
+  const row = (label,val,ratio,cls='',extra='') =>
+    `<tr class="${cls}"><td>${label}</td><td class="${val>=0&&cls.includes('hl')?'vp':val<0&&cls.includes('hl')?'vn':''}">${M(val)}</td><td class="${val>=0&&cls.includes('hl')?'vp':val<0&&cls.includes('hl')?'vn':''}">${ratio}</td></tr>`;
+
+  let h = '<thead><tr><th>구분</th><th>금액</th><th>비율</th></tr></thead><tbody>';
+
+  // ── 매출 (매출세부 있으면 토글 가능, 없으면 단순 행)
+  const hasRevDetail = d.매출세부 != null;
+  if (hasRevDetail) {
+    h += `<tr class="pl-group" onclick="togglePL('매출')"><td>${ti('매출')} 매출</td><td>${M(d.매출)}</td><td>${P(d.매출,R)}</td></tr>`;
+    if (plExpanded['매출']) {
+      const ms = d.매출세부;
+      [['상품매출',ms.상품매출],['티켓매출',ms.티켓매출],['도서매출',ms.도서매출],
+       ['배달매출',ms.배달매출],['기타매출',ms.기타매출]].forEach(([l,v])=>{
+        h += `<tr class="sub-row"><td>${l}</td><td>${M(v)}</td><td>${P(v,R)}</td></tr>`;
+      });
+    }
+  } else {
+    h += `<tr><td style="font-weight:700;color:#1a1a2e">▶ 매출</td><td>${M(d.매출)}</td><td>100%</td></tr>`;
+  }
+
+  // ── 매출원가
+  h += `<tr><td style="padding-left:6px;color:#555"> 매출원가</td><td>${M(d.원가||0)}</td><td>${P(d.원가||0,R)}</td></tr>`;
+
+  // ── 매출총이익
+  const gpC = (d.매출총이익||0)>=0?'vp':'vn';
+  h += `<tr class="hl"><td>▶ 매출총이익</td><td class="${gpC}">${M(d.매출총이익||d.매출-(d.원가||0))}</td><td class="${gpC}">${P(d.매출총이익||d.매출-(d.원가||0),R)}</td></tr>`;
+
+  // ── 판관비 (토글 — 2단계 세부내역 지원)
+  h += `<tr class="pl-group" onclick="togglePL('판관비')"><td>${ti('판관비')} 판관비</td><td>${M(d.판관비)}</td><td>${P(d.판관비,R)}</td></tr>`;
+  if (plExpanded['판관비']) {
+    const ps = d.판관비세부;
+    const sgaSub = d._sga_sub || {};  // 매장 필터 시 2단계 세부 데이터
+
+    const sgaCats = [
+      ['인건비',        ps.인건비],
+      ['감가상각비',    ps.감가상각비],
+      ['지급임차료',    ps.지급임차료],
+      ['에너지',        ps.에너지],
+      ['지급수수료',    ps.지급수수료],
+      ['건물관리비',    ps.건물관리비],
+      ['외주용역비',    ps.외주용역비],
+      ['기타비용',      ps.기타비용],
+    ];
+
+    sgaCats.forEach(([cat, val]) => {
+      const subItems = sgaSub[cat] || {};
+      const subKeys = Object.keys(subItems);
+      const hasDetail = subKeys.length > 1;  // 세부항목이 2개 이상이면 토글 가능
+      const isOpen = plSubExpanded[cat];
+      const subIcon = hasDetail ? `<span class="tog-icon">${isOpen?'▼':'▶'}</span>` : '';
+      const clickAttr = hasDetail ? `onclick="togglePLSub('${cat}')" class="sub-row has-detail"` : 'class="sub-row"';
+      h += `<tr ${clickAttr}><td>${subIcon}${cat}</td><td>${M(val)}</td><td>${P(val,R)}</td></tr>`;
+
+      // 2단계 세부항목
+      if (hasDetail && isOpen) {
+        subKeys.sort((a,b) => (subItems[b]||0) - (subItems[a]||0));  // 금액 내림차순
+        subKeys.forEach(k => {
+          const sv = subItems[k];
+          if (sv) h += `<tr class="sub-sub-row"><td>${k}</td><td>${M(sv)}</td><td>${P(sv,R)}</td></tr>`;
+        });
+      }
+    });
+  }
+
+  // ── 영업이익
+  const opC = d.영업이익>=0?'vp':'vn';
+  h += `<tr class="hl"><td>▶ 영업이익</td><td class="${opC}">${M(d.영업이익)}</td><td class="${opC}">${(d.영업이익/R*100).toFixed(1)}%</td></tr>`;
+
+  // ── EBITDA
+  const ebC = d.EBITDA>=0?'vp':'vn';
+  h += `<tr class="hl"><td>▶ EBITDA</td><td class="${ebC}">${M(d.EBITDA)}</td><td class="${ebC}">${(d.EBITDA/R*100).toFixed(1)}%</td></tr>`;
+
+  // ── 당기순이익
+  const niC = d.당기순이익>=0?'vp':'vn';
+  // 2025년 12월 본사 순이익 이상치 감지 (-2,508M = 연간 퇴직급여 등 특이 항목 추정)
+  const niAbnormal = d.당기순이익 < -5e8
+    && selYears.has('2025')
+    && (selBrands.size===0 || selBrands.has('본사'))
+    && (selMonths.size===0 || selMonths.has('12월'));
+  const niNote = niAbnormal ? ` <span title="2025년 12월 본사 당기순이익에 연간 퇴직급여 정산 등 일시 특이 항목(-2,508M) 포함 추정" style="cursor:help;color:#fdcb6e;font-size:10px;">⚠️이상치</span>` : '';
+  h += `<tr class="hl"><td>▶ 당기순이익${niNote}</td><td class="${niC}">${M(d.당기순이익)}</td><td class="${niC}">${(d.당기순이익/R*100).toFixed(1)}%</td></tr>`;
+
+  document.getElementById('plTable').innerHTML = h + '</tbody>';
+}
+
+// ============================================================
+// STORE TABLE
+// ============================================================
+function updateStoreTable() {
+  const stores = getFilteredStores()
+    .map(([n,s])=>{ const v=getStoreAggForName(n); return{n,brand:s.brand,rev:v.rev,op:v.op,ebitda:v.ebitda}; })
+    .filter(s=>s.rev>0).sort((a,b)=>b.op-a.op);
+  const badge=op=>op>2e7?'<span class="sb sb-ok">✅ 흑자</span>':op>=0?'<span class="sb sb-w">🟡 소폭흑자</span>':op>-3e7?'<span class="sb sb-w">⚠️ 소폭손실</span>':op>-1e8?'<span class="sb sb-b">🔴 손실</span>':'<span class="sb sb-c">🔴 대규모손실</span>';
+  const dc=op=>op>5e6?'dg':op>=-2e7?'dy':'dr';
+  const de=v=>v>5e6?'dg':v>=-2e7?'dy':'dr';
+  let h=`<thead><tr><th>매장명</th><th>브랜드</th><th>매출</th><th>영업이익</th><th>EBITDA</th><th>이익률</th><th>상태</th></tr></thead><tbody>`;
+  stores.forEach(s=>{
+    const c=s.op>=0?'vp':'vn';
+    const ce=s.ebitda>=0?'vp':'vn';
+    h+=`<tr><td><span class="dot ${dc(s.op)}"></span>${s.n}</td><td style="color:#aaa;font-size:11px">${s.brand}</td><td>${M(s.rev)}</td><td class="${c}">${M(s.op)}</td><td class="${ce}">${M(s.ebitda)}</td><td class="${c}">${s.rev?(s.op/s.rev*100).toFixed(1)+'%':'-'}</td><td>${badge(s.op)}</td></tr>`;
+  });
+  document.getElementById('storeTable').innerHTML=h+'</tbody>';
+}
+
+// ============================================================
+// KPI 2행: 비율 지표
+// ============================================================
+function updateKPI2() {
+  const d = getAggData();
+  const R = d.매출;
+  if(!R) return;
+
+  // 인건비, 임차료 추출 (sga_sub 또는 consolidated 판관비세부)
+  const sgaSub = d._sga_sub || {};
+  const labor = sgaSub['인건비'] ? Object.values(sgaSub['인건비']).reduce((a,b)=>a+b,0)
+    : (d.판관비세부?.인건비 || 0);
+  const rent  = sgaSub['지급임차료'] ? Object.values(sgaSub['지급임차료']).reduce((a,b)=>a+b,0)
+    : (d.판관비세부?.지급임차료 || 0);
+
+  const costR  = d.원가  / R * 100;
+  const laborR = labor   / R * 100;
+  const rentR  = rent    / R * 100;
+  const opR    = d.영업이익 / R * 100;
+
+  const set2=(id,v,cls)=>{ const e=document.getElementById(id); e.textContent=v; e.className='kpi-val2 '+cls; };
+
+  set2('kv2-cost',  costR.toFixed(1)+'%',  costR>50?'warn':'neu');
+  set2('kv2-labor', laborR.toFixed(1)+'%', laborR>35?'warn':'neu');
+  set2('kv2-rent',  rentR.toFixed(1)+'%',  rentR>15?'warn':'neu');
+  set2('kv2-op',    opR.toFixed(1)+'%',    opR>=0?'pos':'neg');
+
+  document.getElementById('ks2-cost').textContent  = '원가 '+M(d.원가);
+  document.getElementById('ks2-labor').textContent = '인건비 '+M(labor);
+  document.getElementById('ks2-rent').textContent  = '임차료 '+M(rent);
+  document.getElementById('ks2-op').textContent    = '영업이익 '+M(d.영업이익);
+
+  // 비교 뱃지 (YoY + MoM) — 다중 연도 선택 시 비표시
+  function cmpBadges(curRatio, numFn, denFn, lowerIsBetter) {
+    if(selYears.size>1) return '';
+    const months = getActiveMonths();
+    const prevYear = String(parseInt(CY)-1);
+    const yoyAgg = getPrevPeriodAgg(months, prevYear);
+    const yoyB = getRatioCmpBadge(curRatio, yoyAgg, numFn, denFn, 'YoY(전년 대비)', lowerIsBetter);
+
+    let momB = '';
+    if(months.length===1) {
+      const curNum = parseInt(months[0]);
+      const [pm, py] = curNum>1 ? [(curNum-1)+'월', CY] : ['12월', prevYear];
+      const momAgg = getPrevPeriodAgg([pm], py);
+      momB = getRatioCmpBadge(curRatio, momAgg, numFn, denFn, 'MoM(전월 대비)', lowerIsBetter);
+    }
+    return [yoyB, momB].filter(Boolean).join(' ');
+  }
+
+  document.getElementById('kc2-cost').innerHTML  = cmpBadges(costR,  a=>a.cost,         a=>a.rev, true);
+  document.getElementById('kc2-labor').innerHTML = cmpBadges(laborR, a=>(a.sgaSub['인건비']||0), a=>a.rev, true);
+  document.getElementById('kc2-rent').innerHTML  = cmpBadges(rentR,  a=>(a.sgaSub['지급임차료']||0), a=>a.rev, true);
+  document.getElementById('kc2-op').innerHTML    = cmpBadges(opR,    a=>a.op,            a=>a.rev, false);
+}
+
+// ============================================================
+// MAIN
+// ============================================================
+function updateAll() { updateKPI(); updateKPI2(); updateTrend(); updateStoreChart(); updateSgaChart(); updatePL(); updateStoreTable(); updateSummary(); }
+
+// INIT — data.json 로드 후 초기화
+(function() {
+  const overlay = document.getElementById('loading-overlay');
+  fetch('data.json')
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(d => {
+      ALL_MONTHS  = d.months        || {};
+      ALL_CONS    = d.consolidated  || {};
+      ALL_STORES  = d.stores        || {};
+      ALL_SGA_SUB = d.sga_sub       || {};
+      // 헤더 메타 표시
+      const meta = d.meta || {};
+      const rangeEl   = document.getElementById('hdr-range');
+      const updatedEl = document.getElementById('hdr-updated');
+      if (rangeEl)   rangeEl.textContent   = meta.range_label   || '';
+      if (updatedEl) updatedEl.textContent = meta.updated_label ? `최종 업데이트: ${meta.updated_label}` : '';
+      if (overlay) overlay.remove();
+      syncCY();
+      buildMonthChecks();
+      buildStorePanel();
+      updateAll();
+    })
+    .catch(e => {
+      if (overlay) overlay.innerHTML =
+        '<div style="text-align:center;padding:60px 20px">' +
+        '<p style="font-size:18px;margin-bottom:12px">⚠️ 데이터 로드 실패</p>' +
+        '<p style="color:#aaa;font-size:13px">' + e + '</p>' +
+        '<p style="color:#aaa;font-size:12px;margin-top:10px">data.json 파일이 같은 경로에 있는지 확인하세요.</p>' +
+        '</div>';
+    });
+})();
+
+// ============================================================
+// KPI 툴팁 스마트 포지셔닝 (viewport 잘림 방지)
+// ============================================================
+(function() {
+  let activeTooltip = null;
+  let hideTimer = null;
+
+  document.querySelectorAll('.kpi-info-btn').forEach(btn => {
+    const tip = btn.nextElementSibling;
+    if (!tip || !tip.classList.contains('kpi-tooltip')) return;
+
+    function showTip() {
+      clearTimeout(hideTimer);
+      // 이전 툴팁 닫기
+      if (activeTooltip && activeTooltip !== tip) {
+        activeTooltip.style.display = 'none';
+      }
+      activeTooltip = tip;
+
+      tip.style.display = 'block';
+      const btnR = btn.getBoundingClientRect();
+      const tipW = tip.offsetWidth;
+      const tipH = tip.offsetHeight;
+      const margin = 8;
+
+      // 세로: 버튼 아래, 부족하면 위
+      let top = btnR.bottom + 6;
+      if (top + tipH > window.innerHeight - margin) {
+        top = btnR.top - tipH - 6;
+      }
+      if (top < margin) top = margin;
+
+      // 가로: 오른쪽 정렬 기준, 잘리면 왼쪽으로
+      let left = btnR.right - tipW;
+      if (left < margin) left = margin;
+      if (left + tipW > window.innerWidth - margin) {
+        left = window.innerWidth - tipW - margin;
+      }
+
+      // 화살표 수평 위치 보정
+      const arrowRight = btnR.right - left - 10;
+      tip.style.setProperty('--arrow-right', Math.max(4, Math.min(arrowRight, tipW - 14)) + 'px');
+      tip.style.top  = top  + 'px';
+      tip.style.left = left + 'px';
+    }
+
+    function hideTip() {
+      hideTimer = setTimeout(() => {
+        if (tip === activeTooltip) {
+          tip.style.display = 'none';
+          activeTooltip = null;
+        }
+      }, 120);
+    }
+
+    btn.addEventListener('mouseenter', showTip);
+    btn.addEventListener('mouseleave', hideTip);
+    tip.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+    tip.addEventListener('mouseleave', hideTip);
+    // 클릭으로도 토글 (모바일 대응)
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      tip.style.display === 'block' ? hideTip() : showTip();
+    });
+  });
+
+  // 다른 곳 클릭 시 닫기
+  document.addEventListener('click', () => {
+    if (activeTooltip) {
+      activeTooltip.style.display = 'none';
+      activeTooltip = null;
+    }
+  });
+})();
+</script>
+</body>
+</html>
