@@ -319,7 +319,7 @@
       <div class="brand-wrap">
         <div class="brand-row">
           <button class="br-btn active" id="br-전체" onclick="selectBrand('전체')">전체</button>
-          <button class="br-btn" id="br-INC"  onclick="selectBrand('INC')">INC <span class="arr">▾</span></button>
+          <button class="br-btn" id="br-DEMO"  onclick="selectBrand('DEMO')">DEMO <span class="arr">▾</span></button>
           <button class="br-btn" id="br-LIN"  onclick="selectBrand('LIN')">테이블린 <span class="arr">▾</span></button>
           <button class="br-btn" id="br-극장" onclick="selectBrand('극장')">극장 <span class="arr">▾</span></button>
           <button class="br-btn" id="br-본사" onclick="selectBrand('본사')">본사 <span class="arr">▾</span></button>
@@ -809,7 +809,7 @@ function selectBrand(brand) {
   selStores.clear();
   // 버튼 상태 업데이트
   document.getElementById('br-전체').classList.toggle('active', selBrands.size===0);
-  ['INC','LIN','극장','본사'].forEach(b=>{
+  ['DEMO','LIN','극장','본사'].forEach(b=>{
     const btn=document.getElementById('br-'+b);
     if(btn) btn.classList.toggle('active', selBrands.has(b));
   });
