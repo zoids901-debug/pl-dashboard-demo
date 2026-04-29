@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>손익 대시보드 업로더</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif; background:#1a1a2e; color:#e0e0e0; font-size:14px; min-height:100vh; }
+
+.header { background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460); color:white; padding:16px 28px; border-bottom:3px solid #4a90e2; display:flex; align-items:center; gap:14px; }
+.header h1 { font-size:17px; font-weight:700; }
+.header .ver { font-size:10px; color:#4a90e2; background:#0f3460; padding:2px 8px; border-radius:10px; }
+
+.body { max-width:780px; margin:0 auto; padding:24px 20px; display:flex; flex-direction:column; gap:16px; }
+
+.card { background:#16213e; border:1px solid #0f3460; border-radius:12px; padding:20px; }
+.card-title { font-size:12px; font-weight:700; color:#4a90e2; letter-spacing:.5px; text-transform:uppercase; margin-bottom:14px; }
+
+/* 파일 드롭존 */
+.dropzone { border:2px dashed #2a3a5a; border-radius:10px; padding:32px; text-align:center; cursor:pointer; transition:all .2s; position:relative; }
+.dropzone:hover, .dropzone.drag { border-color:#4a90e2; background:#0f3460; }
+.dropzone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.dropzone-icon { font-size:36px; margin-bottom:8px; }
+.dropzone-text { color:#a0a0b0; font-size:13px; }
+.dropzone-text strong { color:#e0e0e0; display:block; font-size:14px; margin-bottom:4px; }
+.file-name { margin-top:10px; color:#4a90e2; font-size:12px; font-weight:600; }
+
+/* GitHub 설정 */
+.form-row { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+.form-row:last-child { margin-bottom:0; }
+.form-row label { font-size:11px; color:#a0a0b0; font-weight:600; }
+.form-row input { background:#0d1117; border:1px solid #2a3a5a; border-radius:8px; padding:9px 12px; color:#e0e0e0; font-size:13px; outline:none; transition:border .15s; }
+.form-row input:focus { border-color:#4a90e2; }
+.form-row input[type=password] { letter-spacing:2px; }
+
+/* 버튼 */
+.btn-row { display:flex; gap:10px; flex-wrap:wrap; }
+.btn { padding:10px 22px; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:6px; }
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+.btn-blue  { background:#4a90e2; color:white; }
+.btn-blue:hover:not(:disabled)  { background:#357abd; }
+.btn-green { background:#2ea44f; color:white; }
+.btn-green:hover:not(:disabled) { background:#22863a; }
+.btn-gray  { background:#2a3a5a; color:#a0a0b0; }
+.btn-gray:hover:not(:disabled)  { background:#344563; color:#e0e0e0; }
+
+/* 로그 */
+.log { background:#0d1117; border-radius:8px; padding:12px; font-family:'Consolas','Courier New',monospace; font-size:12px; line-height:1.8; max-height:280px; overflow-y:auto; }
+.log:empty::before { content:'로그가 여기 표시됩니다.'; color:#444; }
+.log .ok   { color:#58d68d; }
+.log .err  { color:#e74c3c; }
+.log .warn { color:#f39c12; }
+.log .head { color:#4a90e2; font-weight:700; }
+.log .sub  { color:#a0a0b0; }
+
+/* 미리보기 */
+.preview-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:4px; }
+.prev-card { background:#0d1117; border-radius:8px; padding:12px; }
+.prev-label { font-size:10px; color:#a0a0b0; margin-bottom:4px; }
+.prev-val { font-size:15px; font-weight:700; color:#4a90e2; }
+
+.badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; margin:2px; }
+.badge-inc { background:#1a3a6a; color:#4a90e2; }
+.badge-lin { background:#1a4a2a; color:#2ea44f; }
+.badge-etc { background:#3a2a1a; color:#e17055; }
+
+.spinner { display:inline-block; width:14px; height:14px; border:2px solid #fff3; border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.divider { height:1px; background:#0f3460; margin:4px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>📊</div>
+  <h1>인케이코리아 손익 대시보드 업로더</h1>
+  <span class="ver">v2.0 · HTML</span>
+</div>
+
+<div class="body">
+
+  <!-- ① 파일 선택 -->
+  <div class="card">
+    <div class="card-title">① Excel P&amp;L 파일 선택</div>
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm">
+      <div class="dropzone-icon">📂</div>
+      <div class="dropzone-text">
+        <strong>클릭하거나 파일을 여기에 드래그</strong>
+        Excel 손익 파일 (.xlsx / .xls)
+      </div>
+      <div class="file-name" id="fileName"></div>
+    </div>
+  </div>
+
+  <!-- ② 실행 -->
+  <div class="card">
+    <div class="card-title">② 실행</div>
+    <div class="btn-row">
+      <button class="btn btn-blue" id="btnParse" onclick="runParse()" disabled>
+        ⚙️ 파싱
+      </button>
+      <button class="btn btn-green" id="btnUpload" onclick="runUpload()" disabled>
+        ☁️ GitHub 업로드
+      </button>
+      <button class="btn btn-gray" id="btnDownload" onclick="downloadJson()" disabled>
+        💾 data.json 다운로드
+      </button>
+    </div>
+  </div>
+
+  <!-- 미리보기 -->
+  <div class="card" id="previewCard" style="display:none">
+    <div class="card-title">파싱 결과</div>
+    <div class="preview-grid" id="previewGrid"></div>
+    <div style="margin-top:12px;font-size:11px;color:#a0a0b0">감지된 매장:</div>
+    <div id="storeBadges" style="margin-top:6px"></div>
+  </div>
+
+  <!-- 로그 -->
+  <div class="card">
+    <div class="card-title">로그</div>
+    <div class="log" id="log"></div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// 상수
+// ═══════════════════════════════════════════════════
+const MONTHS_KR = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+const BRAND_MAP = {
+  '미사':'INC','1지점데모':'INC','2지점데모':'INC','3지점데모':'INC','부천':'INC',
+  '안산':'INC','인천':'INC','시흥':'INC','5지점데모':'INC','6지점데모':'INC','팩토리':'INC',
+  '린4지점데모':'LIN','린2지점데모':'LIN','린6지점데모':'LIN','린':'LIN',
+  'cgv':'극장','극장':'극장','롯':'극장','시네마':'극장',
+  '퀴즈':'퀴즈노스','김가네':'김가네',
+};
+
+const DISPLAY_NAME_MAP = {
+  '미사':'4지점데모','1지점데모':'1지점데모점','팩토리':'1지점데모팩토리',
+  '2지점데모CNM':'CGV 2지점데모점','2지점데모cnm':'CGV 2지점데모점','2지점데모':'2지점데모점',
+  '3지점데모':'3지점데모점','5지점데모':'5지점데모점','6지점데모':'6지점데모점',
+  '린4지점데모':'테이블린4지점데모','린2지점데모':'테이블린2지점데모','린6지점데모':'테이블린6지점데모',
+  '롯시':'롯데시네마 4지점데모점','퀴즈':'퀴즈노스','김가네':'김가네',
+};
+
+// ═══════════════════════════════════════════════════
+// 컬럼 인덱스 (0-based)
+// ═══════════════════════════════════════════════════
+const consCol  = m => 4 + (m-1)*2 + Math.floor((m-1)/3);
+const storeCol = m => 4 + (m-1)*3 + Math.floor((m-1)/3);
+const hqCol    = m => 3 + (m-1)*4 + Math.floor((m-1)/3);
+
+// ═══════════════════════════════════════════════════
+// 셀 값 읽기
+// ═══════════════════════════════════════════════════
+function cellVal(ws, row, col) {
+  const addr = XLSX.utils.encode_cell({ r: row, c: col });
+  const cell = ws[addr];
+  if (!cell || cell.v == null) return 0;
+  const v = cell.v;
+  if (typeof v === 'number') return Math.round(v);
+  const n = parseFloat(String(v).replace(/,/g,''));
+  return isNaN(n) ? 0 : Math.round(n);
+}
+function cellStr(ws, row, col) {
+  const addr = XLSX.utils.encode_cell({ r: row, c: col });
+  const cell = ws[addr];
+  return cell ? String(cell.v || '').trim() : '';
+}
+
+// ═══════════════════════════════════════════════════
+// 라벨 → 행 번호 맵 빌드
+// ═══════════════════════════════════════════════════
+function buildLabelMap(ws) {
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  const map = {};
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    const a = cellStr(ws, r, 0);
+    const b = cellStr(ws, r, 1);
+    if (a && !map[a]) map[a] = r;
+    if (b && !map[b]) map[b] = r;
+  }
+  return map;
+}
+
+// ═══════════════════════════════════════════════════
+// 실제 데이터 있는 월 수 감지
+// ═══════════════════════════════════════════════════
+function detectMonths(ws, colFn, yr) {
+  const map = buildLabelMap(ws);
+  const row = map['매출'] ?? map['총매출'];
+  if (row == null) return yr === '2025' ? 12 : 3;
+  let count = 0;
+  for (let m = 1; m <= 12; m++) {
+    const v = cellVal(ws, row, colFn(m));
+    if (v !== 0) count = m;
+  }
+  return count || (yr === '2025' ? 12 : 3);
+}
+
+// ═══════════════════════════════════════════════════
+// 통합 시트 파싱
+// ═══════════════════════════════════════════════════
+function parseConsSheet(ws, n) {
+  const lm = buildLabelMap(ws);
+  const get = (label, m) => {
+    const r = lm[label]; if (r == null) return 0;
+    return cellVal(ws, r, consCol(m));
+  };
+  const result = {};
+  for (let m = 1; m <= n; m++) {
+    const mk = MONTHS_KR[m-1];
+    result[mk] = {
+      매출:        get('매출',m)   || get('총매출',m),
+      원가:        get('매출원가',m),
+      매출총이익:  get('매출총이익',m),
+      판관비:      get('판매관리비',m) || get('판관비',m),
+      영업이익:    get('영업이익',m),
+      EBITDA:      get('EBITDA',m),
+      당기순이익:  get('당기순이익',m),
+      매출세부: lm['상품매출'] != null ? {
+        상품매출: get('상품매출',m), 티켓매출: get('티켓매출',m),
+        도서매출: get('도서매출',m), 배달매출: get('배달매출',m),
+        기타매출: get('기타매출',m),
+      } : null,
+      판관비세부: {
+        인건비:    get('인건비',m),    감가상각비: get('감가상각비',m),
+        지급임차료: get('지급임차료',m), 에너지:    get('에너지',m),
+        지급수수료: get('지급수수료',m), 건물관리비: get('건물관리비',m),
+        외주용역비: get('외주용역비',m), 기타비용:  get('기타비용',m),
+      },
+    };
+  }
+  return result;
+}
+
+// ═══════════════════════════════════════════════════
+// 매장 시트 파싱
+// ═══════════════════════════════════════════════════
+function parseStoreSheet(ws, n, brand, colFn) {
+  const lm = buildLabelMap(ws);
+  const get = (label, m) => {
+    const r = lm[label]; if (r == null) return 0;
+    return cellVal(ws, r, colFn(m));
+  };
+  const months = {};
+  for (let m = 1; m <= n; m++) {
+    const mk = MONTHS_KR[m-1];
+    const rev = get('매출',m) || get('총매출',m);
+    if (!rev) continue;
+
+    // 인건비 세부
+    const laborSub = {};
+    for (const lbl of ['직원급상여','잡급(사업소득)','퇴직급여','복리후생비']) {
+      const v = get(lbl,m); if (v) laborSub[lbl] = v;
+    }
+
+    const sgaSub = {};
+    if (Object.keys(laborSub).length) sgaSub['인건비'] = laborSub;
+
+    for (const [cat, labels] of [
+      ['감가상각비',['감가상각비']],
+      ['지급임차료',['지급임차료']],
+      ['에너지',['전력비','수도광열비','가스비']],
+      ['지급수수료',['지급수수료']],
+      ['건물관리비',['건물관리비']],
+      ['외주용역비',['외주용역비']],
+      ['기타비용',['여비교통비','접대비','통신비','세금과공과','보험료','수선비',
+                   '차량유지비','도서인쇄비','광고선전비','소모품비','운반비',
+                   '교육훈련비','무형자산고정상각']],
+    ]) {
+      const group = {};
+      for (const lbl of labels) { const v=get(lbl,m); if(v) group[lbl]=v; }
+      if (Object.keys(group).length) sgaSub[cat] = group;
+    }
+
+    const revSub = {};
+    for (const lbl of ['상품매출','배달매출','티켓매출','도서매출','기타매출']) {
+      const v=get(lbl,m); if(v) revSub[lbl]=v;
+    }
+
+    months[mk] = {
+      rev, cost: get('매출원가',m), gp: get('매출총이익',m),
+      sga: get('판매관리비',m)||get('판관비',m),
+      op: get('영업이익',m), net: get('당기순이익',m), ebitda: get('EBITDA',m),
+      sga_sub: sgaSub,
+      rev_sub: Object.keys(revSub).length ? revSub : null,
+    };
+  }
+  return { brand, months };
+}
+
+// ═══════════════════════════════════════════════════
+// 매장명 정규화
+// ═══════════════════════════════════════════════════
+function normalizeName(raw) {
+  let d = raw.replace(/\(원가\)|\(원\)/g,'').trim();
+  if (DISPLAY_NAME_MAP[d]) return DISPLAY_NAME_MAP[d];
+  for (const kw of Object.keys(DISPLAY_NAME_MAP).sort((a,b)=>b.length-a.length)) {
+    if (d.includes(kw)) return DISPLAY_NAME_MAP[kw];
+  }
+  return d;
+}
+function detectBrand(name) {
+  const n = name.length>2 ? name.slice(2) : name;
+  for (const kw of Object.keys(BRAND_MAP).sort((a,b)=>b.length-a.length)) {
+    if (n.toLowerCase().includes(kw.toLowerCase())) return BRAND_MAP[kw];
+  }
+  return 'INC';
+}
+
+// ═══════════════════════════════════════════════════
+// 메인 파서
+// ═══════════════════════════════════════════════════
+function parseWorkbook(wb) {
+  const sheets = wb.SheetNames;
+  log(`📋 시트 ${sheets.length}개: ${sheets.join(', ')}`, 'sub');
+
+  const consSheets={}, storeSheets={}, hqSheets={};
+
+  for (const name of sheets) {
+    const low = name.toLowerCase().trim();
+    const yr = low.startsWith('25')||low.includes('2025') ? '2025'
+             : low.startsWith('26')||low.includes('2026') ? '2026' : null;
+    if (!yr) { log(`  ⚠️ 연도 불명 스킵: ${name}`, 'warn'); continue; }
+    const ws = wb.Sheets[name];
+    if (low.includes('통합')||low.includes('cons')) {
+      consSheets[yr] = ws; log(`  ✅ 통합(${yr}): ${name}`);
+    } else if (low.includes('본사')||low.includes('hq')) {
+      hqSheets[yr] = ws; log(`  ✅ 본사(${yr}): ${name}`);
+    } else {
+      const brand = detectBrand(name);
+      if (!storeSheets[yr]) storeSheets[yr] = [];
+      storeSheets[yr].push({name, ws, brand});
+      log(`  ✅ 매장(${yr}): ${name} → ${brand}`);
+    }
+  }
+
+  const cons={}, stores={}, monthsMap={};
+
+  // 통합 파싱
+  for (const [yr, ws] of Object.entries(consSheets)) {
+    const n = detectMonths(ws, consCol, yr);
+    monthsMap[yr] = MONTHS_KR.slice(0, n);
+    cons[yr] = parseConsSheet(ws, n);
+    log(`  📊 통합 ${yr}: ${n}개월`, 'ok');
+  }
+
+  // 매장 파싱
+  for (const [yr, list] of Object.entries(storeSheets)) {
+    const n = monthsMap[yr]?.length || (yr==='2025'?12:3);
+    if (!stores[yr]) stores[yr] = {};
+    for (const {name, ws, brand} of list) {
+      const display = normalizeName(name.length>2 ? name.slice(2) : name);
+      const isCgv = ['cgv','2지점데모cnm'].some(k=>name.toLowerCase().includes(k));
+      const sd = parseStoreSheet(ws, n, isCgv?'극장':brand, storeCol);
+      if (isCgv) sd.cgvRef = true;
+      if (Object.keys(sd.months).length) {
+        stores[yr][display] = sd;
+        log(`  📊 ${display}(${yr}): ${Object.keys(sd.months).length}개월`+(isCgv?' ⚠cgvRef':''), isCgv?'warn':'ok');
+      } else {
+        log(`  ⚠️ ${display}(${yr}): 데이터 없음`, 'warn');
+      }
+    }
+  }
+
+  // 본사 파싱
+  for (const [yr, ws] of Object.entries(hqSheets)) {
+    const n = monthsMap[yr]?.length || (yr==='2025'?12:3);
+    if (!stores[yr]) stores[yr] = {};
+    const sd = parseStoreSheet(ws, n, '본사', hqCol);
+    stores[yr]['본사'] = sd;
+    log(`  📊 본사(${yr}): ${Object.keys(sd.months).length}개월`, 'ok');
+  }
+
+  // monthsMap 보완
+  for (const yr of Object.keys(storeSheets)) {
+    if (!monthsMap[yr]) {
+      const max = Math.max(...(storeSheets[yr]||[]).map(({ws})=>detectMonths(ws, storeCol, yr)));
+      monthsMap[yr] = MONTHS_KR.slice(0, max);
+    }
+  }
+
+  // SGA_SUB 집계
+  const sgaSub = {};
+  for (const [yr, yrStores] of Object.entries(stores)) {
+    const mkList = monthsMap[yr] || [];
+    const sub = Object.fromEntries(mkList.map(mk=>[mk,{}]));
+    for (const [sname, sd] of Object.entries(yrStores)) {
+      if (sname==='본사') continue;
+      for (const [mk, md] of Object.entries(sd.months||{})) {
+        if (!sub[mk]) continue;
+        for (const [cat, subs] of Object.entries(md.sga_sub||{})) {
+          const total = typeof subs==='object' ? Object.values(subs).reduce((a,b)=>a+b,0) : (subs||0);
+          sub[mk][cat] = (sub[mk][cat]||0) + total;
+        }
+      }
+    }
+    sgaSub[yr] = sub;
+  }
+
+  // 메타
+  const years = Object.keys(monthsMap).sort();
+  const latestYr = years[years.length-1];
+  const latestMs = monthsMap[latestYr]||[];
+  const parts = years.map(yr=>{
+    const ms=monthsMap[yr]||[];
+    if(!ms.length) return `${yr}년`;
+    if(ms.length===1) return `${yr}년 ${ms[0]}`;
+    return `${yr}년 ${ms[0]}~${ms[ms.length-1]}`;
+  });
+  const now = new Date();
+  const meta = {
+    updated: now.toISOString().slice(0,10),
+    updated_label: `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일`,
+    latest_year: latestYr,
+    latest_month: latestMs[latestMs.length-1]||'',
+    range_label: parts.join(' · '),
+  };
+
+  return { meta, months: monthsMap, consolidated: cons, stores, sga_sub: sgaSub };
+}
+
+// ═══════════════════════════════════════════════════
+// 로그
+// ═══════════════════════════════════════════════════
+const logEl = document.getElementById('log');
+function log(msg, type='ok') {
+  const d = document.createElement('div');
+  d.className = type;
+  d.textContent = msg;
+  logEl.appendChild(d);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function logClear() { logEl.innerHTML=''; }
+
+// ═══════════════════════════════════════════════════
+// 파일 선택
+// ═══════════════════════════════════════════════════
+let parsedData = null;
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  document.getElementById('fileName').textContent = '📄 ' + f.name;
+  document.getElementById('btnParse').disabled = false;
+  parsedData = null;
+  document.getElementById('btnUpload').disabled = true;
+  document.getElementById('btnDownload').disabled = true;
+  document.getElementById('previewCard').style.display = 'none';
+  logClear();
+  log(`파일 선택: ${f.name}`, 'head');
+});
+
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('drag');});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('drag'));
+dz.addEventListener('drop', e=>{
+  e.preventDefault(); dz.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if(!f) return;
+  document.getElementById('fileInput').files = e.dataTransfer.files;
+  document.getElementById('fileInput').dispatchEvent(new Event('change'));
+});
+
+// ═══════════════════════════════════════════════════
+// 파싱 실행
+// ═══════════════════════════════════════════════════
+async function runParse() {
+  const file = document.getElementById('fileInput').files[0];
+  if(!file) return;
+  logClear();
+  const btn = document.getElementById('btnParse');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 파싱 중...';
+  log('══════════════════════════════', 'head');
+  log('⚙️  파싱 시작', 'head');
+  log('══════════════════════════════', 'head');
+
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type:'array' });
+    parsedData = parseWorkbook(wb);
+
+    log('', 'ok');
+    log('✅ 파싱 완료!', 'head');
+    log(`   데이터 기간: ${parsedData.meta.range_label}`, 'ok');
+
+    showPreview(parsedData);
+    document.getElementById('btnUpload').disabled = false;
+    document.getElementById('btnDownload').disabled = false;
+  } catch(e) {
+    log('❌ 파싱 오류: ' + e.message, 'err');
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '⚙️ 파싱';
+}
+
+// ═══════════════════════════════════════════════════
+// 미리보기
+// ═══════════════════════════════════════════════════
+function showPreview(d) {
+  const card = document.getElementById('previewCard');
+  card.style.display = '';
+
+  const years = Object.keys(d.months).sort();
+  const storeCount = Object.values(d.stores).reduce((s,v)=>s+Object.keys(v).length,0);
+
+  document.getElementById('previewGrid').innerHTML = `
+    <div class="prev-card"><div class="prev-label">데이터 기간</div><div class="prev-val" style="font-size:13px">${d.meta.range_label}</div></div>
+    <div class="prev-card"><div class="prev-label">연도</div><div class="prev-val">${years.join(', ')}</div></div>
+    <div class="prev-card"><div class="prev-label">매장 수</div><div class="prev-val">${storeCount}개</div></div>
+  `;
+
+  const badges = [];
+  for (const [yr, yrStores] of Object.entries(d.stores)) {
+    for (const [name, sd] of Object.entries(yrStores)) {
+      const cls = sd.brand==='INC'?'badge-inc':sd.brand==='LIN'?'badge-lin':'badge-etc';
+      badges.push(`<span class="badge ${cls}">${name}</span>`);
+    }
+  }
+  document.getElementById('storeBadges').innerHTML = [...new Set(badges)].join('');
+}
+
+// ═══════════════════════════════════════════════════
+// data.json 다운로드
+// ═══════════════════════════════════════════════════
+function downloadJson() {
+  if (!parsedData) return;
+  const blob = new Blob([JSON.stringify(parsedData, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'data.json';
+  a.click();
+}
+
+// ═══════════════════════════════════════════════════
+// GitHub 업로드
+// ═══════════════════════════════════════════════════
+// ── GitHub 설정 (내부 고정값) ──
+function getToken() {
+  let t = localStorage.getItem('gh_pat');
+  if (!t) {
+    t = prompt('GitHub Personal Access Token 입력 (한 번만 입력하면 저장됨):');
+    if (t) localStorage.setItem('gh_pat', t.trim());
+  }
+  return t || '';
+}
+const GH = {
+  get token() { return getToken(); },
+  owner:  'zoids901-debug',
+  repo:   'pl-dashboard',
+  branch: 'main',
+};
+
+async function runUpload() {
+  if (!parsedData) return;
+  const { token, owner, repo, branch } = GH;
+
+  if (!token) { alert('GitHub Token을 입력하세요.'); return; }
+
+  const btn = document.getElementById('btnUpload');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 업로드 중...';
+
+  log('', 'ok');
+  log('══════════════════════════════', 'head');
+  log('☁️  GitHub 업로드 시작', 'head');
+  log('══════════════════════════════', 'head');
+
+  try {
+    const jsonStr = JSON.stringify(parsedData, null, 2);
+    const content = btoa(unescape(encodeURIComponent(jsonStr)));
+    const msg = `손익 데이터 업데이트 (${parsedData.meta.range_label})`;
+
+    await ghUploadFile(token, owner, repo, branch, 'data.json', content, msg);
+
+    log('', 'ok');
+    log('✅ 업로드 완료!', 'head');
+    log(`   https://${owner}.github.io/${repo}/`, 'ok');
+    log('   GitHub Pages 반영까지 1~2분 소요됩니다.', 'warn');
+  } catch(e) {
+    log('❌ 업로드 실패: ' + e.message, 'err');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '☁️ GitHub 업로드';
+}
+
+async function ghUploadFile(token, owner, repo, branch, ghPath, contentB64, message) {
+  const api = `https://api.github.com/repos/${owner}/${repo}/contents/${ghPath}`;
+  const headers = {
+    'Authorization': `token ${token}`,
+    'Accept': 'application/vnd.github+json',
+    'Content-Type': 'application/json',
+  };
+
+  // SHA 조회
+  let sha;
+  const getRes = await fetch(api, { headers });
+  if (getRes.ok) {
+    sha = (await getRes.json()).sha;
+    log(`   기존 파일 감지 (SHA: ${sha.slice(0,8)}...)`, 'sub');
+  } else {
+    log('   신규 파일 생성', 'sub');
+  }
+
+  const body = { message, content: contentB64, branch };
+  if (sha) body.sha = sha;
+
+  const res = await fetch(api, { method:'PUT', headers, body: JSON.stringify(body) });
+  const r = await res.json();
+  if (!res.ok) throw new Error(r.message || res.status);
+  log(`   ✅ ${ghPath} 업로드 완료`, 'ok');
+}
+</script>
+</body>
+</html>
